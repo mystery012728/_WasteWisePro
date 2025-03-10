@@ -42,18 +42,26 @@ class _ResultPageState extends State<ResultPage> {
     super.initState();
     _disableScanning();
     _fetchPickupDetails();
+    // Start a timer to check for missed pickups
+    _startMissedPickupTimer();
   }
 
   @override
   void dispose() {
     weightControllers.forEach((_, controller) => controller.dispose());
     _specialDaysPageController.dispose();
+    _enableScanning(); // Re-enable scanning when leaving the page
     super.dispose();
   }
 
   Future<void> _disableScanning() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(SCANNING_ENABLED_KEY, false);
+  }
+
+  Future<void> _enableScanning() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(SCANNING_ENABLED_KEY, true);
   }
 
   bool _isWithinPickupWindow(String pickupTime) {
@@ -200,6 +208,50 @@ class _ResultPageState extends State<ResultPage> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  void _startMissedPickupTimer() {
+    Future.delayed(Duration(minutes: 30), () {
+      if (mounted) {
+        _checkForMissedPickups();
+      }
+    });
+  }
+
+  Future<void> _checkForMissedPickups() async {
+    // Check subscription pickup
+    if (subscriptionData != null &&
+        !isSubscriptionCancelled &&
+        !isPickupMissed) {
+      // If pickup time has passed and not confirmed, mark as missed
+      if (!_isWithinPickupWindow(subscriptionData!['pickup_time'])) {
+        await _addToMissedPickups();
+      }
+    }
+
+    // Check special day pickups
+    for (var specialDay in specialDaysList) {
+      final pickupTime = specialDay['pickup_time'] as String;
+      if (!_isWithinPickupWindow(pickupTime)) {
+        // Add to missed pickups collection
+        await FirebaseFirestore.instance.collection('missed_pickups').add({
+          'special_day_id': specialDay['id'],
+          'customer_id': specialDay['userId'],
+          'scheduled_date': specialDay['pickup_date'],
+          'scheduled_time': specialDay['pickup_time'],
+          'type': 'special_day',
+          'waste_type': specialDay['type'],
+          'missed_at': Timestamp.now(),
+          'status': 'missed'
+        });
+
+        // Update special day status to inactive
+        await FirebaseFirestore.instance
+            .collection('special_day_details')
+            .doc(specialDay['id'])
+            .update({'status': 'inactive', 'missed_at': Timestamp.now()});
+      }
     }
   }
 
@@ -560,8 +612,7 @@ class _ResultPageState extends State<ResultPage> {
                                     }
 
                                     // Re-enable scanning
-                                    final prefs = await SharedPreferences.getInstance();
-                                    await prefs.setBool(SCANNING_ENABLED_KEY, true);
+                                    await _enableScanning();
                                     Navigator.pop(context);
                                   } catch (e) {
                                     print('Error confirming pickup: $e');
@@ -655,7 +706,8 @@ class _ResultPageState extends State<ResultPage> {
                         ),
                         IconButton(
                           icon: Icon(Icons.arrow_forward_ios, size: 16),
-                          onPressed: currentSpecialDayIndex < specialDaysList.length - 1
+                          onPressed: currentSpecialDayIndex <
+                              specialDaysList.length - 1
                               ? () {
                             _specialDaysPageController.nextPage(
                               duration: Duration(milliseconds: 300),
@@ -663,7 +715,8 @@ class _ResultPageState extends State<ResultPage> {
                             );
                           }
                               : null,
-                          color: currentSpecialDayIndex < specialDaysList.length - 1
+                          color: currentSpecialDayIndex <
+                              specialDaysList.length - 1
                               ? primaryGreen
                               : Colors.grey[400],
                         ),
@@ -698,6 +751,9 @@ class _ResultPageState extends State<ResultPage> {
     final pickupDate = (specialDayData['pickup_date'] as Timestamp).toDate();
     final pickupTime = specialDayData['pickup_time'] as String;
     final type = specialDayData['type'] as String;
+
+    // Check if we're within the pickup window
+    final isWithinPickupWindow = _isWithinPickupWindow(pickupTime);
 
     return Container(
       decoration: BoxDecoration(
@@ -771,7 +827,8 @@ class _ResultPageState extends State<ResultPage> {
                   if (type == 'waste') ...[
                     // Household waste section
                     if (specialDayData['household_waste'] != null &&
-                        (specialDayData['household_waste'] as List).isNotEmpty) ...[
+                        (specialDayData['household_waste'] as List)
+                            .isNotEmpty) ...[
                       Text(
                         'Household Waste',
                         style: GoogleFonts.poppins(
@@ -781,30 +838,37 @@ class _ResultPageState extends State<ResultPage> {
                         ),
                       ),
                       SizedBox(height: 8),
-                      ...(specialDayData['household_waste'] as List).map((type) {
+                      ...(specialDayData['household_waste'] as List)
+                          .map((type) {
                         final controllerKey = 'household_$type';
-                        final weight = specialDayData['household_waste_weights']?[type] ?? 0.0;
+                        final weight = specialDayData['household_waste_weights']
+                        ?[type] ??
+                            0.0;
 
                         // Initialize controller if it doesn't exist
-                        weightControllers.putIfAbsent(controllerKey, () => TextEditingController());
+                        weightControllers.putIfAbsent(
+                            controllerKey, () => TextEditingController());
 
                         // Set text value if weight is greater than 0
                         if (weight > 0) {
-                          weightControllers[controllerKey]?.text = weight.toString();
+                          weightControllers[controllerKey]?.text =
+                              weight.toString();
                         }
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: TextField(
                             controller: weightControllers[controllerKey],
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            keyboardType:
+                            TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: 'Enter $type weight (kg)',
                               hintText: 'e.g. 5.5',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              prefixIcon: Icon(Icons.scale, color: primaryGreen),
+                              prefixIcon:
+                              Icon(Icons.scale, color: primaryGreen),
                             ),
                           ),
                         );
@@ -813,7 +877,10 @@ class _ResultPageState extends State<ResultPage> {
 
                     // Commercial waste section
                     if (specialDayData['commercial_waste'] != null &&
-                        (specialDayData['commercial_waste'] as List).isNotEmpty) ...[
+                        (specialDayData['commercial_waste'] as List)
+                            != null &&
+                        (specialDayData['commercial_waste'] as List)
+                            .isNotEmpty) ...[
                       SizedBox(height: 16),
                       Text(
                         'Commercial Waste',
@@ -824,30 +891,37 @@ class _ResultPageState extends State<ResultPage> {
                         ),
                       ),
                       SizedBox(height: 8),
-                      ...(specialDayData['commercial_waste'] as List).map((type) {
+                      ...(specialDayData['commercial_waste'] as List)
+                          .map((type) {
                         final controllerKey = 'commercial_$type';
-                        final weight = specialDayData['commercial_waste_weights']?[type] ?? 0.0;
+                        final weight =
+                            specialDayData['commercial_waste_weights']?[type] ??
+                                0.0;
 
                         // Initialize controller if it doesn't exist
-                        weightControllers.putIfAbsent(controllerKey, () => TextEditingController());
+                        weightControllers.putIfAbsent(
+                            controllerKey, () => TextEditingController());
 
                         // Set text value if weight is greater than 0
                         if (weight > 0) {
-                          weightControllers[controllerKey]?.text = weight.toString();
+                          weightControllers[controllerKey]?.text =
+                              weight.toString();
                         }
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: TextField(
                             controller: weightControllers[controllerKey],
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            keyboardType:
+                            TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: 'Enter $type weight (kg)',
                               hintText: 'e.g. 5.5',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              prefixIcon: Icon(Icons.scale, color: primaryGreen),
+                              prefixIcon:
+                              Icon(Icons.scale, color: primaryGreen),
                             ),
                           ),
                         );
@@ -868,28 +942,33 @@ class _ResultPageState extends State<ResultPage> {
                       SizedBox(height: 8),
                       ...(specialDayData['scrap_types'] as List).map((type) {
                         final controllerKey = 'scrap_$type';
-                        final weight = specialDayData['scrap_weights']?[type] ?? 0.0;
+                        final weight =
+                            specialDayData['scrap_weights']?[type] ?? 0.0;
 
                         // Initialize controller if it doesn't exist
-                        weightControllers.putIfAbsent(controllerKey, () => TextEditingController());
+                        weightControllers.putIfAbsent(
+                            controllerKey, () => TextEditingController());
 
                         // Set text value if weight is greater than 0
                         if (weight > 0) {
-                          weightControllers[controllerKey]?.text = weight.toString();
+                          weightControllers[controllerKey]?.text =
+                              weight.toString();
                         }
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: TextField(
                             controller: weightControllers[controllerKey],
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            keyboardType:
+                            TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: 'Enter $type weight (kg)',
                               hintText: 'e.g. 5.5',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              prefixIcon: Icon(Icons.scale, color: primaryGreen),
+                              prefixIcon:
+                              Icon(Icons.scale, color: primaryGreen),
                             ),
                           ),
                         );
@@ -898,246 +977,154 @@ class _ResultPageState extends State<ResultPage> {
                   ],
 
                   SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        // Collect weights for the current special day
-                        Map<String, double> householdWeights = {};
-                        Map<String, double> commercialWeights = {};
-                        Map<String, double> scrapWeights = {};
+                  // Only show confirm button if within pickup window
+                  if (isWithinPickupWindow)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          // Collect weights for the current special day
+                          Map<String, double> householdWeights = {};
+                          Map<String, double> commercialWeights = {};
+                          Map<String, double> scrapWeights = {};
 
-                        // Process household waste weights
-                        if (specialDayData['household_waste'] != null) {
-                          for (var type in specialDayData['household_waste']) {
-                            final controllerKey = 'household_$type';
-                            if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
-                              householdWeights[type] = double.parse(weightControllers[controllerKey]!.text);
+                          // Process household waste weights
+                          if (specialDayData['household_waste'] != null) {
+                            for (var type
+                            in specialDayData['household_waste']) {
+                              final controllerKey = 'household_$type';
+                              if (weightControllers[controllerKey]
+                                  ?.text
+                                  .isNotEmpty ??
+                                  false) {
+                                householdWeights[type] = double.parse(
+                                    weightControllers[controllerKey]!.text);
+                              }
                             }
                           }
-                        }
 
-                        // Process commercial waste weights
-                        if (specialDayData['commercial_waste'] != null) {
-                          for (var type in specialDayData['commercial_waste']) {
-                            final controllerKey = 'commercial_$type';
-                            if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
-                              commercialWeights[type] = double.parse(weightControllers[controllerKey]!.text);
+                          // Process commercial waste weights
+                          if (specialDayData['commercial_waste'] != null) {
+                            for (var type
+                            in specialDayData['commercial_waste']) {
+                              final controllerKey = 'commercial_$type';
+                              if (weightControllers[controllerKey]
+                                  ?.text
+                                  .isNotEmpty ??
+                                  false) {
+                                commercialWeights[type] = double.parse(
+                                    weightControllers[controllerKey]!.text);
+                              }
                             }
                           }
-                        }
 
-                        // Process scrap weights
-                        if (specialDayData['scrap_types'] != null) {
-                          for (var type in specialDayData['scrap_types']) {
-                            final controllerKey = 'scrap_$type';
-                            if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
-                              scrapWeights[type] = double.parse(weightControllers[controllerKey]!.text);
+                          // Process scrap weights
+                          if (specialDayData['scrap_types'] != null) {
+                            for (var type in specialDayData['scrap_types']) {
+                              final controllerKey = 'scrap_$type';
+                              if (weightControllers[controllerKey]
+                                  ?.text
+                                  .isNotEmpty ??
+                                  false) {
+                                scrapWeights[type] = double.parse(
+                                    weightControllers[controllerKey]!.text);
+                              }
                             }
                           }
-                        }
 
-                        try {
-                          // Add to successful pickups collection
-                          await FirebaseFirestore.instance
-                              .collection('successful_pickups')
-                              .add({
-                            'special_day_id': specialDayData['id'],
-                            'customer_id': specialDayData['userId'],
-                            'pickup_date': Timestamp.now(),
-                            'scheduled_time': specialDayData['pickup_time'],
-                            'type': 'special_day',
-                            'waste_type': specialDayData['type'],
-                            'household_waste': specialDayData['household_waste'],
-                            'commercial_waste': specialDayData['commercial_waste'],
-                            'scrap_types': specialDayData['scrap_types'],
-                            'household_waste_weights': householdWeights,
-                            'commercial_waste_weights': commercialWeights,
-                            'scrap_weights': scrapWeights,
-                            'status': 'completed',
-                            'completed_at': Timestamp.now()
-                          });
+                          try {
+                            // Add to successful pickups collection
+                            await FirebaseFirestore.instance
+                                .collection('successful_pickups')
+                                .add({
+                              'special_day_id': specialDayData['id'],
+                              'customer_id': specialDayData['userId'],
+                              'pickup_date': Timestamp.now(),
+                              'scheduled_time': specialDayData['pickup_time'],
+                              'type': 'special_day',
+                              'waste_type': specialDayData['type'],
+                              'household_waste':
+                              specialDayData['household_waste'],
+                              'commercial_waste':
+                              specialDayData['commercial_waste'],
+                              'scrap_types': specialDayData['scrap_types'],
+                              'household_waste_weights': householdWeights,
+                              'commercial_waste_weights': commercialWeights,
+                              'scrap_weights': scrapWeights,
+                              'status': 'completed',
+                              'completed_at': Timestamp.now()
+                            });
 
-                          // Update special day status to inactive
-                          await FirebaseFirestore.instance
-                              .collection('special_day_details')
-                              .doc(specialDayData['id'])
-                              .update({
-                            'status': 'inactive',
-                            'completed_at': Timestamp.now()
-                          });
+                            // Update special day status to inactive
+                            await FirebaseFirestore.instance
+                                .collection('special_day_details')
+                                .doc(specialDayData['id'])
+                                .update({
+                              'status': 'inactive',
+                              'completed_at': Timestamp.now()
+                            });
 
-                          if (mounted) {
-                            CustomSnackbar.showSuccess(
-                              context: context,
-                              message: 'Special day pickup confirmed successfully!',
-                            );
+                            if (mounted) {
+                              CustomSnackbar.showSuccess(
+                                context: context,
+                                message:
+                                'Special day pickup confirmed successfully!',
+                              );
+                            }
+
+                            // Re-enable scanning
+                            await _enableScanning();
+                            Navigator.pop(context);
+                          } catch (e) {
+                            print('Error confirming special day pickup: $e');
+                            if (mounted) {
+                              CustomSnackbar.showError(
+                                context: context,
+                                message:
+                                'Failed to confirm pickup. Please try again.',
+                              );
+                            }
                           }
-
-                          // Re-enable scanning
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool(SCANNING_ENABLED_KEY, true);
-                          Navigator.pop(context);
-                        } catch (e) {
-                          print('Error confirming special day pickup: $e');
-                          if (mounted) {
-                            CustomSnackbar.showError(
-                              context: context,
-                              message: 'Failed to confirm pickup. Please try again.',
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryGreen,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryGreen,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          'Confirm Special Day Pickup',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                      child: Text(
-                        'Confirm Special Day Pickup',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                    )
+                  else
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.access_time, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Confirm button will be available at the scheduled pickup time: $pickupTime',
+                              style: GoogleFonts.poppins(
+                                color: Colors.orange[800],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            try {
-                              // Update special day status to missed
-                              await FirebaseFirestore.instance
-                                  .collection('special_day_details')
-                                  .doc(specialDayData['id'])
-                                  .update({
-                                'status': 'inactive',
-                                'missed_at': Timestamp.now()
-                              });
-
-                              // Add to missed pickups
-                              await FirebaseFirestore.instance
-                                  .collection('missed_pickups')
-                                  .add({
-                                'special_day_id': specialDayData['id'],
-                                'customer_id': specialDayData['userId'],
-                                'scheduled_date': specialDayData['pickup_date'],
-                                'scheduled_time': specialDayData['pickup_time'],
-                                'type': 'special_day',
-                                'waste_type': specialDayData['type'],
-                                'missed_at': Timestamp.now(),
-                                'status': 'missed'
-                              });
-
-                              if (mounted) {
-                                CustomSnackbar.showSuccess(
-                                  context: context,
-                                  message: 'Pickup marked as missed!',
-                                );
-                              }
-
-                              // Re-enable scanning
-                              final prefs = await SharedPreferences.getInstance();
-                              await prefs.setBool(SCANNING_ENABLED_KEY, true);
-                              Navigator.pop(context);
-                            } catch (e) {
-                              print('Error marking pickup as missed: $e');
-                              if (mounted) {
-                                CustomSnackbar.showError(
-                                  context: context,
-                                  message: 'Failed to update pickup status. Please try again.',
-                                );
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: Text(
-                            'Mark as Missed',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            try {
-                              // Update special day status to cancelled
-                              await FirebaseFirestore.instance
-                                  .collection('special_day_details')
-                                  .doc(specialDayData['id'])
-                                  .update({
-                                'status': 'inactive',
-                                'cancelled_at': Timestamp.now()
-                              });
-
-                              // Add to cancelled pickups
-                              await FirebaseFirestore.instance
-                                  .collection('cancelled_pickups')
-                                  .add({
-                                'special_day_id': specialDayData['id'],
-                                'customer_id': specialDayData['userId'],
-                                'date': specialDayData['pickup_date'],
-                                'scheduled_time': specialDayData['pickup_time'],
-                                'type': 'special_day',
-                                'waste_type': specialDayData['type'],
-                                'cancelled_at': Timestamp.now(),
-                                'status': 'cancelled'
-                              });
-
-                              if (mounted) {
-                                CustomSnackbar.showSuccess(
-                                  context: context,
-                                  message: 'Pickup cancelled successfully!',
-                                );
-                              }
-
-                              // Re-enable scanning
-                              final prefs = await SharedPreferences.getInstance();
-                              await prefs.setBool(SCANNING_ENABLED_KEY, true);
-                              Navigator.pop(context);
-                            } catch (e) {
-                              print('Error cancelling pickup: $e');
-                              if (mounted) {
-                                CustomSnackbar.showError(
-                                  context: context,
-                                  message: 'Failed to cancel pickup. Please try again.',
-                                );
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: Text(
-                            'Cancel Pickup',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -1357,45 +1344,6 @@ class _QRScannerPageState extends State<QRScannerPage> {
                             painter: ScannerOverlayPainter(),
                           ),
                         ),
-                        if (!isScanningEnabled) ...[
-                          SizedBox(height: 20),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'Scanning paused',
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed: () async {
-                              setState(() {
-                                isScanningEnabled = true;
-                              });
-                              await prefs.setBool(SCANNING_ENABLED_KEY, true);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryGreen,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: Text(
-                              'Resume Scanning',
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -1597,4 +1545,3 @@ class _QRScannerPageState extends State<QRScannerPage> {
     }
   }
 }
-

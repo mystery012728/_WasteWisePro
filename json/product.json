@@ -1,0 +1,178 @@
+[
+  {
+    "name": "Organic Compost Mix",
+    "description": "A nutrient-rich compost blend made from plant and animal waste to improve soil fertility.",
+    "image": "https://example.com/images/organic_compost_mix.jpg",
+    "oldPrice": 750.00,
+    "price": 699.00,
+    "rating": 4.8
+  },
+  {
+    "name": "Organic Cow Manure Fertilizer",
+    "description": "Purely organic cow dung fertilizer, aged and composted for natural soil enrichment.",
+    "image": "https://example.com/images/organic_cow_manure.jpg",
+    "oldPrice": 800.00,
+    "price": 749.00,
+    "rating": 4.7
+  },
+  {
+    "name": "Organic Vermicompost",
+    "description": "High-quality worm compost providing essential nutrients and beneficial microbes for plant growth.",
+    "image": "https://example.com/images/organic_vermicompost.jpg",
+    "oldPrice": 780.00,
+    "price": 730.00,
+    "rating": 4.9
+  },
+  {
+    "name": "Bio-Organic Fertilizer",
+    "description": "Completely organic fertilizer enriched with beneficial bacteria and micro-nutrients to improve soil health.",
+    "image": "https://example.com/images/bio_organic_fertilizer.jpg",
+    "oldPrice": 720.00,
+    "price": 680.00,
+    "rating": 4.6
+  },
+  {
+    "name": "Organic Neem Cake Fertilizer",
+    "description": "Natural neem-based organic fertilizer that enhances soil quality and repels harmful pests.",
+    "image": "https://example.com/images/organic_neem_cake.jpg",
+    "oldPrice": 600.00,
+    "price": 550.00,
+    "rating": 4.5
+  },
+  {
+    "name": "Seaweed Extract Fertilizer",
+    "description": "Derived from seaweed, this fertilizer promotes plant growth and strengthens root systems.",
+    "image": "https://example.com/images/seaweed_extract.jpg",
+    "oldPrice": 700.00,
+    "price": 660.00,
+    "rating": 4.8
+  },
+  {
+    "name": "Organic Bone Meal Fertilizer",
+    "description": "Rich in phosphorus and calcium, perfect for promoting strong root development.",
+    "image": "https://example.com/images/organic_bone_meal.jpg",
+    "oldPrice": 690.00,
+    "price": 640.00,
+    "rating": 4.7
+  },
+  {
+    "name": "Coconut Coir Fertilizer",
+    "description": "Retains moisture while providing essential nutrients for plant growth.",
+    "image": "https://example.com/images/coconut_coir.jpg",
+    "oldPrice": 680.00,
+    "price": 630.00,
+    "rating": 4.6
+  },
+  {
+    "name": "Fish Emulsion Fertilizer",
+    "description": "Liquid organic fertilizer made from fish waste, rich in nitrogen and essential minerals.",
+    "image": "https://example.com/images/fish_emulsion.jpg",
+    "oldPrice": 800.00,
+    "price": 770.00,
+    "rating": 4.9
+  },
+  {
+    "name": "Organic Poultry Manure",
+    "description": "Dried poultry manure rich in nitrogen, phosphorus, and potassium for plant nutrition.",
+    "image": "https://example.com/images/organic_poultry_manure.jpg",
+    "oldPrice": 710.00,
+    "price": 670.00,
+    "rating": 4.5
+  },
+  {
+    "name": "Alfalfa Meal Fertilizer",
+    "description": "A natural source of nitrogen and trace minerals, ideal for organic gardening.",
+    "image": "https://example.com/images/alfalfa_meal.jpg",
+    "oldPrice": 750.00,
+    "price": 710.00,
+    "rating": 4.7
+  },
+  {
+    "name": "Kelp Meal Organic Fertilizer",
+    "description": "Provides essential plant hormones and nutrients to enhance growth and resilience.",
+    "image": "https://example.com/images/kelp_meal.jpg",
+    "oldPrice": 780.00,
+    "price": 740.00,
+    "rating": 4.8
+  },
+  {
+    "name": "Soybean Meal Fertilizer",
+    "description": "A slow-release nitrogen source that promotes healthy plant growth.",
+    "image": "https://example.com/images/soybean_meal.jpg",
+    "oldPrice": 720.00,
+    "price": 690.00,
+    "rating": 4.6
+  },
+  {
+    "name": "Bat Guano Fertilizer",
+    "description": "High-phosphorus organic fertilizer for blooming plants and strong root growth.",
+    "image": "https://example.com/images/bat_guano.jpg",
+    "oldPrice": 770.00,
+    "price": 740.00,
+    "rating": 4.9
+  },
+  {
+    "name": "Composted Mushroom Soil",
+    "description": "Rich in organic matter, improves soil aeration and moisture retention.",
+    "image": "https://example.com/images/mushroom_compost.jpg",
+    "oldPrice": 680.00,
+    "price": 650.00,
+    "rating": 4.5
+  },
+  {
+    "name": "Peat Moss Fertilizer",
+    "description": "Enhances soil structure and improves moisture retention for plants.",
+    "image": "https://example.com/images/peat_moss.jpg",
+    "oldPrice": 660.00,
+    "price": 620.00,
+    "rating": 4.4
+  },
+  {
+    "name": "Organic Molasses Fertilizer",
+    "description": "Promotes microbial activity in the soil and boosts nutrient absorption.",
+    "image": "https://example.com/images/molasses_fertilizer.jpg",
+    "oldPrice": 720.00,
+    "price": 680.00,
+    "rating": 4.6
+  },
+  {
+    "name": "Humic Acid Organic Fertilizer",
+    "description": "Enhances nutrient uptake and improves soil structure for healthier plants.",
+    "image": "https://example.com/images/humic_acid.jpg",
+    "oldPrice": 790.00,
+    "price": 750.00,
+    "rating": 4.7
+  },
+  {
+    "name": "Natural Rock Phosphate",
+    "description": "A slow-release phosphorus source for long-term soil health.",
+    "image": "https://example.com/images/rock_phosphate.jpg",
+    "oldPrice": 700.00,
+    "price": 660.00,
+    "rating": 4.5
+  },
+  {
+    "name": "Organic Green Manure Fertilizer",
+    "description": "Increases organic matter and nutrients in soil naturally.",
+    "image": "https://example.com/images/green_manure.jpg",
+    "oldPrice": 680.00,
+    "price": 650.00,
+    "rating": 4.6
+  },
+  {
+    "name": "Liquid Seaweed Fertilizer",
+    "description": "Rich in trace elements and growth hormones for healthier plants.",
+    "image": "https://example.com/images/liquid_seaweed.jpg",
+    "oldPrice": 770.00,
+    "price": 730.00,
+    "rating": 4.8
+  },
+  {
+    "name": "Organic Banana Peel Fertilizer",
+    "description": "Natural potassium source to improve plant flowering and fruiting.",
+    "image": "https://example.com/images/banana_peel.jpg",
+    "oldPrice": 690.00,
+    "price": 660.00,
+    "rating": 4.5
+  }
+]

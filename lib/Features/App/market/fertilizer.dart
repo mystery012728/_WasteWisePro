@@ -19,8 +19,11 @@ class fertilizer extends StatefulWidget {
 
 class _FertilizerState extends State<fertilizer> with TickerProviderStateMixin {
   late AnimationController _controller;
-
   final Color primaryColor = const Color(0xFF2E7D32);
+
+  int _currentPage = 1;
+  final int _productsPerPage = 12;
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -66,6 +69,17 @@ class _FertilizerState extends State<fertilizer> with TickerProviderStateMixin {
   }
 
   Widget _buildBody() {
+    return Column(
+      children: [
+        Expanded(
+          child: _buildProductGrid(),
+        ),
+        _buildPagination(),
+      ],
+    );
+  }
+
+  Widget _buildProductGrid() {
     return StreamBuilder(
       stream: FirebaseFirestore.instance.collection('products').snapshots(),
       builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -94,7 +108,14 @@ class _FertilizerState extends State<fertilizer> with TickerProviderStateMixin {
           );
         }
 
-        var products = snapshot.data!.docs.toList();
+        var allProducts = snapshot.data!.docs.toList();
+        _totalPages = (allProducts.length / _productsPerPage).ceil();
+
+        var startIndex = (_currentPage - 1) * _productsPerPage;
+        var endIndex = startIndex + _productsPerPage;
+        if (endIndex > allProducts.length) endIndex = allProducts.length;
+
+        var products = allProducts.sublist(startIndex, endIndex);
 
         return AnimationLimiter(
           child: GridView.builder(
@@ -311,5 +332,87 @@ class _FertilizerState extends State<fertilizer> with TickerProviderStateMixin {
         message: '${name} added to cart',
       );
     }
+  }
+
+  Widget _buildPagination() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            offset: const Offset(0, -2),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Previous button
+          IconButton(
+            onPressed:
+            _currentPage > 1 ? () => setState(() => _currentPage--) : null,
+            icon: Icon(Icons.arrow_back_ios,
+                color: _currentPage > 1 ? primaryColor : Colors.grey),
+          ),
+          // Page numbers
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(_totalPages, (index) {
+              final pageNumber = index + 1;
+              final isCurrentPage = pageNumber == _currentPage;
+
+              if (_totalPages <= 5 ||
+                  pageNumber == 1 ||
+                  pageNumber == _totalPages ||
+                  (pageNumber >= _currentPage - 1 &&
+                      pageNumber <= _currentPage + 1)) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ElevatedButton(
+                    onPressed: () => setState(() => _currentPage = pageNumber),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                      isCurrentPage ? primaryColor : Colors.white,
+                      foregroundColor:
+                      isCurrentPage ? Colors.white : primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: primaryColor),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                    ),
+                    child: Text(
+                      '$pageNumber',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                );
+              } else if (pageNumber == _currentPage - 2 ||
+                  pageNumber == _currentPage + 2) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text('...', style: TextStyle(color: primaryColor)),
+                );
+              }
+              return const SizedBox.shrink();
+            }),
+          ),
+          // Next button
+          IconButton(
+            onPressed: _currentPage < _totalPages
+                ? () => setState(() => _currentPage++)
+                : null,
+            icon: Icon(Icons.arrow_forward_ios,
+                color: _currentPage < _totalPages ? primaryColor : Colors.grey),
+          ),
+        ],
+      ),
+    );
   }
 }

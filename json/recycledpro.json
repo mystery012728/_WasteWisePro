@@ -1,0 +1,156 @@
+{
+  "recycled_diy_goods": [
+    {
+      "name": "Upcycled Wooden Coasters",
+      "description": "Handmade coasters crafted from reclaimed wood pieces.",
+      "image": "https://example.com/wooden_coasters.jpg",
+      "oldPrice": 1500,
+      "price": 1200,
+      "rating": 4.6
+    },
+    {
+      "name": "Recycled Glass Bottle Vase",
+      "description": "Aesthetic flower vase made from repurposed glass bottles.",
+      "image": "https://example.com/glass_vase.jpg",
+      "oldPrice": 2000,
+      "price": 1700,
+      "rating": 4.5
+    },
+    {
+      "name": "DIY Recycled Plastic Planters",
+      "description": "Eco-friendly plant pots made from upcycled plastic bottles.",
+      "image": "https://example.com/plastic_planters.jpg",
+      "oldPrice": 1200,
+      "price": 900,
+      "rating": 4.3
+    },
+    {
+      "name": "Handmade Paper Notebook",
+      "description": "Sustainable notebook made from old newspapers and magazines.",
+      "image": "https://example.com/recycled_notebook.jpg",
+      "oldPrice": 1800,
+      "price": 1500,
+      "rating": 4.4
+    },
+    {
+      "name": "Eco-Friendly Tote Bags",
+      "description": "Reusable tote bags made from recycled fabric scraps.",
+      "image": "https://example.com/tote_bag.jpg",
+      "oldPrice": 2500,
+      "price": 2000,
+      "rating": 4.6
+    },
+    {
+      "name": "Recycled Wine Bottle Lamp",
+      "description": "Aesthetic lamp made from repurposed wine bottles.",
+      "image": "https://example.com/wine_lamp.jpg",
+      "oldPrice": 3500,
+      "price": 3000,
+      "rating": 4.7
+    },
+    {
+      "name": "DIY Bottle Cap Wall Art",
+      "description": "Creative wall art made from recycled bottle caps.",
+      "image": "https://example.com/bottlecap_art.jpg",
+      "oldPrice": 2800,
+      "price": 2500,
+      "rating": 4.5
+    },
+    {
+      "name": "Upcycled Denim Cushion Covers",
+      "description": "Handmade cushion covers crafted from old denim jeans.",
+      "image": "https://example.com/denim_cushion.jpg",
+      "oldPrice": 3000,
+      "price": 2500,
+      "rating": 4.3
+    },
+    {
+      "name": "Handmade Wooden Candle Holders",
+      "description": "Beautiful candle holders made from reclaimed wood.",
+      "image": "https://example.com/candle_holder.jpg",
+      "oldPrice": 3500,
+      "price": 2900,
+      "rating": 4.6
+    },
+    {
+      "name": "Recycled Tin Can Lanterns",
+      "description": "Handmade lanterns created from repurposed tin cans.",
+      "image": "https://example.com/tin_lantern.jpg",
+      "oldPrice": 2000,
+      "price": 1500,
+      "rating": 4.2
+    },
+    {
+      "name": "Reused Bicycle Chain Keychains",
+      "description": "Unique keychains crafted from old bicycle chains.",
+      "image": "https://example.com/bike_chain_keychain.jpg",
+      "oldPrice": 1000,
+      "price": 800,
+      "rating": 4.4
+    },
+    {
+      "name": "Recycled Metal Wind Chimes",
+      "description": "Decorative wind chimes crafted from old metal scraps.",
+      "image": "https://example.com/metal_windchime.jpg",
+      "oldPrice": 3200,
+      "price": 2800,
+      "rating": 4.5
+    },
+    {
+      "name": "Upcycled Skateboard Wall Shelf",
+      "description": "Small wall-mounted shelf made from repurposed skateboards.",
+      "image": "https://example.com/skateboard_shelf.jpg",
+      "oldPrice": 5000,
+      "price": 4500,
+      "rating": 4.7
+    },
+    {
+      "name": "Recycled Fabric Patchwork Pillow",
+      "description": "Cozy pillow cover handmade from assorted recycled fabric pieces.",
+      "image": "https://example.com/patchwork_pillow.jpg",
+      "oldPrice": 3200,
+      "price": 2700,
+      "rating": 4.8
+    },
+    {
+      "name": "Recycled Cardboard Desk Organizer",
+      "description": "Eco-friendly desk organizer made from upcycled cardboard.",
+      "image": "https://example.com/cardboard_organizer.jpg",
+      "oldPrice": 1500,
+      "price": 1200,
+      "rating": 4.2
+    },
+    {
+      "name": "DIY Tin Can Pencil Holder",
+      "description": "Handmade pencil holder made from recycled tin cans.",
+      "image": "https://example.com/tin_pencil_holder.jpg",
+      "oldPrice": 1000,
+      "price": 700,
+      "rating": 4.1
+    },
+    {
+      "name": "Recycled Wooden Picture Frame",
+      "description": "Rustic picture frame handcrafted from reclaimed wood.",
+      "image": "https://example.com/wooden_frame.jpg",
+      "oldPrice": 2500,
+      "price": 2000,
+      "rating": 4.5
+    },
+    {
+      "name": "Upcycled Vinyl Record Clock",
+      "description": "Wall clock made from old vinyl records.",
+      "image": "https://example.com/vinyl_clock.jpg",
+      "oldPrice": 4000,
+      "price": 3500,
+      "rating": 4.6
+    },
+    {
+      "name": "Handmade Coconut Shell Bowls",
+      "description": "Sustainable bowls made from repurposed coconut shells.",
+      "image": "https://example.com/coconut_bowls.jpg",
+      "oldPrice": 3200,
+      "price": 2700,
+      "rating": 4.4
+    }
+  ]
+}

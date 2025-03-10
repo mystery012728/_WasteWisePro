@@ -174,10 +174,6 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(Duration(days: 1));
-
     return Container(
       decoration: BoxDecoration(
         color: primaryGreen,
@@ -229,26 +225,12 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          confirmedPickups.isNotEmpty
-                              ? 'Tomorrow\'s Pickup'
-                              : 'Today\'s Pickup',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          DateFormat('EEEE, MMMM d').format(
-                              confirmedPickups.isNotEmpty ? tomorrow : today),
-                          style: GoogleFonts.poppins(
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Upcoming Pickup',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -462,7 +444,7 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
             children: [
               Expanded(
                 child: TextButton.icon(
-                  onPressed: () {
+                  onPressed: isCancelled ? null : () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -473,10 +455,10 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
                       ),
                     );
                   },
-                  icon: Icon(Icons.location_on, color: primaryGreen),
+                  icon: Icon(Icons.location_on, color: isCancelled ? Colors.grey : primaryGreen),
                   label: Text(
                     'Track',
-                    style: GoogleFonts.poppins(color: primaryGreen),
+                    style: GoogleFonts.poppins(color: isCancelled ? Colors.grey : primaryGreen),
                   ),
                 ),
               ),
@@ -487,12 +469,12 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
               ),
               Expanded(
                 child: TextButton.icon(
-                  onPressed: () =>
+                  onPressed: isCancelled ? null : () =>
                       _showChangePickupTimeDialog(context, docId, pickupTime),
-                  icon: Icon(Icons.access_time, color: primaryGreen),
+                  icon: Icon(Icons.access_time, color: isCancelled ? Colors.grey : primaryGreen),
                   label: Text(
                     'Change Time',
-                    style: GoogleFonts.poppins(color: primaryGreen),
+                    style: GoogleFonts.poppins(color: isCancelled ? Colors.grey : primaryGreen),
                   ),
                 ),
               ),
@@ -503,12 +485,12 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
               ),
               Expanded(
                 child: TextButton.icon(
-                  onPressed: () =>
+                  onPressed: isCancelled ? null : () =>
                       _showCancelDialog(context, docId, 'subscription_details'),
-                  icon: Icon(Icons.cancel_outlined, color: Colors.red),
+                  icon: Icon(Icons.cancel_outlined, color: isCancelled ? Colors.grey : Colors.red),
                   label: Text(
                     'Cancel',
-                    style: GoogleFonts.poppins(color: Colors.red),
+                    style: GoogleFonts.poppins(color: isCancelled ? Colors.grey : Colors.red),
                   ),
                 ),
               ),

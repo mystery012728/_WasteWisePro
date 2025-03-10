@@ -1,0 +1,188 @@
+{
+  "recycled_electronics": [
+    {
+      "name": "Refurbished Laptop",
+      "description": "High-performance laptop with upgraded SSD and RAM.",
+      "image": "https://example.com/laptop.jpg",
+      "oldPrice": 22000,
+      "price": 18000,
+      "rating": 4.5
+    },
+    {
+      "name": "Recycled Smartphone",
+      "description": "Eco-friendly smartphone with certified refurbished parts.",
+      "image": "https://example.com/smartphone.jpg",
+      "oldPrice": 25000,
+      "price": 21000,
+      "rating": 4.7
+    },
+    {
+      "name": "Pre-owned Smartwatch",
+      "description": "Stylish smartwatch with a new battery and warranty.",
+      "image": "https://example.com/smartwatch.jpg",
+      "oldPrice": 8000,
+      "price": 6000,
+      "rating": 4.3
+    },
+    {
+      "name": "Reconditioned Bluetooth Headphones",
+      "description": "Noise-canceling headphones with replaced ear cushions.",
+      "image": "https://example.com/headphones.jpg",
+      "oldPrice": 12000,
+      "price": 10000,
+      "rating": 4.6
+    },
+    {
+      "name": "Recycled LED TV",
+      "description": "Smart LED TV with upgraded display panel and software.",
+      "image": "https://example.com/tv.jpg",
+      "oldPrice": 25000,
+      "price": 20000,
+      "rating": 4.8
+    },
+    {
+      "name": "Certified Refurbished Tablet",
+      "description": "Tablet with renewed battery and performance boost.",
+      "image": "https://example.com/tablet.jpg",
+      "oldPrice": 18000,
+      "price": 14000,
+      "rating": 4.4
+    },
+    {
+      "name": "Repaired Wireless Earbuds",
+      "description": "Compact wireless earbuds with new charging case.",
+      "image": "https://example.com/earbuds.jpg",
+      "oldPrice": 7000,
+      "price": 5000,
+      "rating": 4.2
+    },
+    {
+      "name": "Renewed Desktop PC",
+      "description": "Fully functional desktop with upgraded hardware.",
+      "image": "https://example.com/desktop.jpg",
+      "oldPrice": 25000,
+      "price": 20000,
+      "rating": 4.7
+    },
+    {
+      "name": "Second-hand DSLR Camera",
+      "description": "Refurbished DSLR with a new lens and warranty.",
+      "image": "https://example.com/camera.jpg",
+      "oldPrice": 23000,
+      "price": 19000,
+      "rating": 4.5
+    },
+    {
+      "name": "Repaired Gaming Console",
+      "description": "Refurbished gaming console with optimized performance.",
+      "image": "https://example.com/console.jpg",
+      "oldPrice": 22000,
+      "price": 18000,
+      "rating": 4.6
+    },
+    {
+      "name": "Recycled External Hard Drive",
+      "description": "Large-capacity HDD with improved performance.",
+      "image": "https://example.com/harddrive.jpg",
+      "oldPrice": 9000,
+      "price": 7000,
+      "rating": 4.3
+    },
+    {
+      "name": "Certified Used Projector",
+      "description": "High-quality projector with a replaced lamp.",
+      "image": "https://example.com/projector.jpg",
+      "oldPrice": 25000,
+      "price": 21000,
+      "rating": 4.8
+    },
+    {
+      "name": "Reused Portable Speaker",
+      "description": "Bluetooth speaker with enhanced sound quality.",
+      "image": "https://example.com/speaker.jpg",
+      "oldPrice": 10000,
+      "price": 8000,
+      "rating": 4.2
+    },
+    {
+      "name": "Recycled Computer Monitor",
+      "description": "HD monitor with minor cosmetic wear but full functionality.",
+      "image": "https://example.com/monitor.jpg",
+      "oldPrice": 15000,
+      "price": 12000,
+      "rating": 4.5
+    },
+    {
+      "name": "Eco-friendly Power Bank",
+      "description": "Power bank with a recycled lithium-ion battery.",
+      "image": "https://example.com/powerbank.jpg",
+      "oldPrice": 7000,
+      "price": 5000,
+      "rating": 4.3
+    },
+    {
+      "name": "Refurbished Wireless Keyboard",
+      "description": "Mechanical keyboard with cleaned and replaced keycaps.",
+      "image": "https://example.com/keyboard.jpg",
+      "oldPrice": 6000,
+      "price": 4000,
+      "rating": 4.1
+    },
+    {
+      "name": "Certified Pre-owned Router",
+      "description": "High-speed Wi-Fi router with latest firmware update.",
+      "image": "https://example.com/router.jpg",
+      "oldPrice": 9000,
+      "price": 7000,
+      "rating": 4.4
+    },
+    {
+      "name": "Second-hand VR Headset",
+      "description": "Refurbished VR headset with upgraded sensors.",
+      "image": "https://example.com/vrheadset.jpg",
+      "oldPrice": 20000,
+      "price": 16000,
+      "rating": 4.7
+    },
+    {
+      "name": "Repaired Smart Home Hub",
+      "description": "Smart home control device with latest software update.",
+      "image": "https://example.com/smarthub.jpg",
+      "oldPrice": 15000,
+      "price": 12000,
+      "rating": 4.5
+    },
+    {
+      "name": "Reused Digital Drawing Tablet",
+      "description": "Graphics tablet with reconditioned stylus.",
+      "image": "https://example.com/drawingtablet.jpg",
+      "oldPrice": 17000,
+      "price": 13000,
+      "rating": 4.6
+    },
+    {
+      "name": "Pre-owned Gaming Mouse",
+      "description": "Gaming mouse with renewed optical sensor.",
+      "image": "https://example.com/mouse.jpg",
+      "oldPrice": 6000,
+      "price": 4000,
+      "rating": 4.2
+    },
+    {
+      "name": "Refurbished Sound System",
+      "description": "High-quality sound system with new subwoofers.",
+      "image": "https://example.com/soundsystem.jpg",
+      "oldPrice": 25000,
+      "price": 20000,
+      "rating": 4.8
+    },
+    {
+      "name": "Recycled 3D Printer",
+      "description": "Fully functional 3D printer with upgraded firmware.",
+      "image": "https://example.com/3dprinter.jpg",
+      "oldPrice": 25000,
+      "price": 21000,
+      "rating": 4.7
+    }
+  ]
+}
