@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
+import 'dart:math';
+import 'package:intl/intl.dart';
 
 class OrderedProducts extends StatefulWidget {
   const OrderedProducts({Key? key}) : super(key: key);
@@ -12,29 +14,27 @@ class OrderedProducts extends StatefulWidget {
   State<OrderedProducts> createState() => _OrderedProductsState();
 }
 
-class _OrderedProductsState extends State<OrderedProducts>
-    with SingleTickerProviderStateMixin {
+class _OrderedProductsState extends State<OrderedProducts> {
   List<Map<String, dynamic>> orders = [];
   Timer? _timer;
-  late TabController _tabController;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String? _userId = FirebaseAuth.instance.currentUser?.uid;
   bool _isLoading = true;
 
+  // Track which view is selected (0 = Processing, 1 = Completed, 2 = Cancelled)
+  int _selectedView = 0;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _loadOrders();
     // Check for order updates every minute
-    _timer =
-        Timer.periodic(const Duration(minutes: 1), (_) => _checkOrderUpdates());
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) => _checkOrderUpdates());
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -65,10 +65,41 @@ class _OrderedProductsState extends State<OrderedProducts>
           .orderBy('createdAt', descending: true)
           .get();
 
-      // Combine all orders
-      allOrders.addAll(ordersSnapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
-          .toList());
+      // Process orders and add delivery time prediction if needed
+      for (var doc in ordersSnapshot.docs) {
+        final order = doc.data() as Map<String, dynamic>;
+
+        // Check if we need to add a delivery time prediction
+        if (order['status'] == 'Processing' && order['deliveryDate'] != null) {
+          final deliveryDate = _parseDeliveryDate(order['deliveryDate']);
+          final now = DateTime.now();
+          final oneDayBefore = deliveryDate.subtract(const Duration(days: 1));
+
+          // If today is one day before delivery and no predicted time yet
+          if (now.year == oneDayBefore.year &&
+              now.month == oneDayBefore.month &&
+              now.day == oneDayBefore.day &&
+              order['predictedDeliveryTime'] == null) {
+
+            // Generate random delivery time between 10 AM and 7 PM
+            final random = Random();
+            final hour = 10 + random.nextInt(10); // 10 AM to 7 PM (10+9)
+            final minute = random.nextInt(60);
+            final predictedTime = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+            // Update the order with predicted delivery time
+            await _firestore.collection('orders').doc(doc.id).update({
+              'predictedDeliveryTime': predictedTime,
+            });
+
+            order['predictedDeliveryTime'] = predictedTime;
+          }
+        }
+
+        allOrders.add(order);
+      }
+
+      // Add successful and cancelled orders
       allOrders.addAll(successfulOrdersSnapshot.docs
           .map((doc) => doc.data() as Map<String, dynamic>)
           .toList());
@@ -88,6 +119,19 @@ class _OrderedProductsState extends State<OrderedProducts>
     }
   }
 
+  DateTime _parseDeliveryDate(String dateStr) {
+    // Parse date in format DD/MM/YYYY
+    final parts = dateStr.split('/');
+    if (parts.length == 3) {
+      return DateTime(
+        int.parse(parts[2]), // year
+        int.parse(parts[1]), // month
+        int.parse(parts[0]), // day
+      );
+    }
+    return DateTime.now(); // fallback
+  }
+
   List<Map<String, dynamic>> _getFilteredOrders(String status) {
     return orders.where((order) => order['status'] == status).toList();
   }
@@ -103,29 +147,53 @@ class _OrderedProductsState extends State<OrderedProducts>
           .get();
 
       bool hasChanges = false;
+      final now = DateTime.now();
+
       for (var doc in ordersSnapshot.docs) {
         final order = doc.data() as Map<String, dynamic>;
-        final deliveryDate =
-        DateTime.parse(order['deliveryDate'].split('/').reversed.join('-'));
+        final deliveryDate = _parseDeliveryDate(order['deliveryDate']);
 
-        if (DateTime.now().isAfter(deliveryDate)) {
-          // Update order status
-          await _firestore
-              .collection('orders')
-              .doc(doc.id)
-              .update({'status': 'Delivered'});
+        // Check if delivery date has passed
+        if (now.isAfter(deliveryDate)) {
+          // If we have a predicted time, check if that time has passed too
+          bool shouldMarkDelivered = true;
 
-          // Store in successful_orders collection
-          await _firestore.collection('successful_orders').doc(doc.id).set({
-            ...order,
-            'status': 'Delivered',
-            'completedAt': DateTime.now().toIso8601String(),
-          });
+          if (order['predictedDeliveryTime'] != null) {
+            final timeStr = order['predictedDeliveryTime'] as String;
+            final timeParts = timeStr.split(':');
+            if (timeParts.length == 2) {
+              final deliveryDateTime = DateTime(
+                deliveryDate.year,
+                deliveryDate.month,
+                deliveryDate.day,
+                int.parse(timeParts[0]),
+                int.parse(timeParts[1]),
+              );
 
-          // Delete from orders collection
-          await _firestore.collection('orders').doc(doc.id).delete();
+              // Only mark as delivered if current time is after the predicted delivery time
+              shouldMarkDelivered = now.isAfter(deliveryDateTime);
+            }
+          }
 
-          hasChanges = true;
+          if (shouldMarkDelivered) {
+            // Update order status
+            await _firestore
+                .collection('orders')
+                .doc(doc.id)
+                .update({'status': 'Delivered'});
+
+            // Store in successful_orders collection
+            await _firestore.collection('successful_orders').doc(doc.id).set({
+              ...order,
+              'status': 'Delivered',
+              'completedAt': DateTime.now().toIso8601String(),
+            });
+
+            // Delete from orders collection
+            await _firestore.collection('orders').doc(doc.id).delete();
+
+            hasChanges = true;
+          }
         }
       }
 
@@ -189,8 +257,122 @@ class _OrderedProductsState extends State<OrderedProducts>
     );
   }
 
+  Widget _buildToggleBar() {
+    return Container(
+      color: const Color(0xFF2E7D32),
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.green.shade800,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedView = 0;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _selectedView == 0 ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Processing',
+                      style: GoogleFonts.poppins(
+                        color: _selectedView == 0
+                            ? const Color(0xFF2E7D32)
+                            : Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedView = 1;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _selectedView == 1 ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Completed',
+                      style: GoogleFonts.poppins(
+                        color: _selectedView == 1
+                            ? const Color(0xFF2E7D32)
+                            : Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedView = 2;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _selectedView == 2 ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Cancelled',
+                      style: GoogleFonts.poppins(
+                        color: _selectedView == 2
+                            ? const Color(0xFF2E7D32)
+                            : Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Get the appropriate filtered orders based on selected view
+    List<Map<String, dynamic>> filteredOrders;
+    switch (_selectedView) {
+      case 0:
+        filteredOrders = _getFilteredOrders('Processing');
+        break;
+      case 1:
+        filteredOrders = _getFilteredOrders('Delivered');
+        break;
+      case 2:
+        filteredOrders = _getFilteredOrders('Cancelled');
+        break;
+      default:
+        filteredOrders = _getFilteredOrders('Processing');
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -202,37 +384,13 @@ class _OrderedProductsState extends State<OrderedProducts>
         ),
         backgroundColor: const Color(0xFF2E7D32),
         elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          tabs: [
-            Tab(
-              child: Text(
-                'Processing',
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-            Tab(
-              child: Text(
-                'Completed',
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-            Tab(
-              child: Text(
-                'Cancelled',
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildOrdersList(_getFilteredOrders('Processing')),
-          _buildOrdersList(_getFilteredOrders('Delivered')),
-          _buildOrdersList(_getFilteredOrders('Cancelled')),
+          _buildToggleBar(),
+          Expanded(
+            child: _buildOrdersList(filteredOrders),
+          ),
         ],
       ),
     );
@@ -249,11 +407,40 @@ class OrderCard extends StatelessWidget {
     required this.onStatusChanged,
   }) : super(key: key);
 
+  DateTime _parseDeliveryDate(String dateStr) {
+    // Parse date in format DD/MM/YYYY
+    final parts = dateStr.split('/');
+    if (parts.length == 3) {
+      return DateTime(
+        int.parse(parts[2]), // year
+        int.parse(parts[1]), // month
+        int.parse(parts[0]), // day
+      );
+    }
+    return DateTime.now(); // fallback
+  }
+
+  bool _isOneDayBeforeDelivery(String deliveryDateStr) {
+    final deliveryDate = _parseDeliveryDate(deliveryDateStr);
+    final now = DateTime.now();
+    final oneDayBefore = deliveryDate.subtract(const Duration(days: 1));
+
+    return now.year == oneDayBefore.year &&
+        now.month == oneDayBefore.month &&
+        now.day == oneDayBefore.day;
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = order['items'] as List<dynamic>;
     final firstItem = items.first;
     final itemCount = items.length;
+    final bool isProcessing = order['status'] == 'Processing';
+    final bool hasDeliveryDate = order['deliveryDate'] != null;
+    final bool hasDeliveryTime = order['predictedDeliveryTime'] != null;
+    final bool isOneDayBeforeDelivery = hasDeliveryDate &&
+        isProcessing &&
+        _isOneDayBeforeDelivery(order['deliveryDate']);
 
     return Card(
       elevation: 2,
@@ -345,7 +532,7 @@ class OrderCard extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
-                  if (order['status'] == 'Processing')
+                  if (isProcessing && hasDeliveryDate)
                     Text(
                       'Delivery by ${order['deliveryDate']}',
                       style: GoogleFonts.poppins(
@@ -355,6 +542,33 @@ class OrderCard extends StatelessWidget {
                     ),
                 ],
               ),
+              if (isOneDayBeforeDelivery && hasDeliveryTime) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.access_time, color: Colors.green, size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Your delivery will arrive tomorrow at ${order['predictedDeliveryTime']}',
+                          style: GoogleFonts.poppins(
+                            color: Colors.green,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
