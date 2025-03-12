@@ -877,8 +877,7 @@ class _ResultPageState extends State<ResultPage> {
 
                     // Commercial waste section
                     if (specialDayData['commercial_waste'] != null &&
-                        (specialDayData['commercial_waste'] as List)
-                            != null &&
+                        (specialDayData['commercial_waste'] as List) != null &&
                         (specialDayData['commercial_waste'] as List)
                             .isNotEmpty) ...[
                       SizedBox(height: 16),
@@ -1221,6 +1220,25 @@ class _QRScannerPageState extends State<QRScannerPage> {
     super.initState();
     cameraController = MobileScannerController();
     _initPreferences();
+    // Add listener for scanning status changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkScanningStatus();
+    });
+  }
+
+  Future<void> _checkScanningStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final scanningEnabled = prefs.getBool(SCANNING_ENABLED_KEY) ?? true;
+
+    if (mounted && scanningEnabled != isScanningEnabled) {
+      setState(() {
+        isScanningEnabled = scanningEnabled;
+      });
+      // Reset scanning state when returning to scanner
+      if (scanningEnabled) {
+        await prefs.setBool(SCANNING_ENABLED_KEY, true);
+      }
+    }
   }
 
   Future<void> _initPreferences() async {
@@ -1322,9 +1340,9 @@ class _QRScannerPageState extends State<QRScannerPage> {
                           color: Colors.white,
                         ),
                         onPressed: () async {
+                          await cameraController.toggleTorch();
                           setState(() {
                             isFlashOn = !isFlashOn;
-                            cameraController.toggleTorch();
                           });
                           await prefs.setBool(FLASH_STATE_KEY, isFlashOn);
                         },
@@ -1532,16 +1550,5 @@ class _QRScannerPageState extends State<QRScannerPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _checkScanningStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final scanningEnabled = prefs.getBool(SCANNING_ENABLED_KEY) ?? true;
-
-    if (mounted && scanningEnabled != isScanningEnabled) {
-      setState(() {
-        isScanningEnabled = scanningEnabled;
-      });
-    }
   }
 }

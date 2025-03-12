@@ -13,6 +13,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutternew/Features/App/profile/awareness_videos.dart';
+import 'package:flutternew/Features/App/profile/rewards.dart';
 
 class profile extends StatefulWidget {
   const profile({Key? key}) : super(key: key);
@@ -634,6 +635,19 @@ class _ProfilePageState extends State<profile>
                   context,
                   MaterialPageRoute(
                     builder: (context) => const AwarenessVideosPage(),
+                  ),
+                );
+              },
+            ),
+            _buildDivider(),
+            _buildProfileOption(
+              icon: Icons.stars,
+              title: 'Your Rewards',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RewardsPage(),
                   ),
                 );
               },
