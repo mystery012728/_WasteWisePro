@@ -7,6 +7,270 @@ import 'package:flutternew/Features/App/home/upcomingpickup.dart';
 import 'package:flutternew/Features/App/payment/razer_pay.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutternew/Features/App/home/home.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class AddressScreen extends StatefulWidget {
+  final Function(String) onAddressSelected;
+
+  const AddressScreen({Key? key, required this.onAddressSelected}) : super(key: key);
+
+  @override
+  State<AddressScreen> createState() => _AddressScreenState();
+}
+
+class _AddressScreenState extends State<AddressScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _pincodeController = TextEditingController();
+  final TextEditingController _houseController = TextEditingController();
+  final TextEditingController _roadController = TextEditingController();
+  String? _city;
+  String? _state;
+  final Color primaryGreen = const Color(0xFF2E7D32);
+  final Color lightGreen = const Color(0xFF4CAF50);
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _pincodeController.dispose();
+    _houseController.dispose();
+    _roadController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchLocationDetails(String pincode) async {
+    if (pincode.length != 6) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await http.get(
+          Uri.parse("http://www.postalpincode.in/api/pincode/$pincode")
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        if (jsonResponse['Status'] == 'Success') {
+          final postOffice = jsonResponse['PostOffice'][0];
+          setState(() {
+            _city = postOffice['District'];
+            _state = postOffice['State'];
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _city = null;
+            _state = null;
+            _isLoading = false;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Invalid pincode.')),
+            );
+          }
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        throw Exception('Failed to load location details');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching location: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  InputDecoration _buildInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.poppins(color: Colors.grey[600]),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: primaryGreen, width: 2),
+      ),
+      filled: true,
+      fillColor: Colors.grey[50],
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    );
+  }
+
+  void _submitAddress() {
+    if (_formKey.currentState!.validate()) {
+      String address = '${_houseController.text}, ${_roadController.text}, ${_city ?? ''}, ${_state ?? ''}, ${_pincodeController.text}';
+      widget.onAddressSelected(address);
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 8,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add Delivery Address',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: primaryGreen,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _houseController,
+                  decoration: _buildInputDecoration('House no / Building Name'),
+                  style: GoogleFonts.poppins(),
+                  validator: (value) =>
+                  value?.isEmpty ?? true ? 'Please enter building name' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _roadController,
+                  decoration: _buildInputDecoration('Road Name / Area / Colony'),
+                  style: GoogleFonts.poppins(),
+                  validator: (value) =>
+                  value?.isEmpty ?? true ? 'Please enter road name' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _pincodeController,
+                  decoration: _buildInputDecoration('Pincode'),
+                  style: GoogleFonts.poppins(),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) return 'Please enter pincode';
+                    if (value!.length != 6)
+                      return 'Please enter a valid 6-digit pincode';
+                    return null;
+                  },
+                  onChanged: (value) {
+                    if (value.length == 6) {
+                      _fetchLocationDetails(value);
+                    } else {
+                      setState(() {
+                        _city = null;
+                        _state = null;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          TextFormField(
+                            decoration: _buildInputDecoration('City'),
+                            controller: TextEditingController(text: _city),
+                            style: GoogleFonts.poppins(),
+                            readOnly: true,
+                            enabled: !_isLoading,
+                            validator: (value) => _city == null || _city!.isEmpty
+                                ? 'Please enter valid pincode to get city' : null,
+                          ),
+                          if (_isLoading)
+                            Positioned(
+                              right: 10,
+                              top: 15,
+                              child: SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(primaryGreen),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        decoration: _buildInputDecoration('State'),
+                        controller: TextEditingController(text: _state),
+                        style: GoogleFonts.poppins(),
+                        readOnly: true,
+                        enabled: !_isLoading,
+                        validator: (value) => _state == null || _state!.isEmpty
+                            ? 'Please enter valid pincode to get state' : null,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey[700],
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: _submitAddress,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: Text(
+                        'Save Address',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class SubscriptionDetailsPage extends StatefulWidget {
   const SubscriptionDetailsPage({super.key});
@@ -303,66 +567,182 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Select Address Option'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(Icons.my_location),
-                title: Text('Use Current Location'),
-                onTap: () {
-                  setState(() {
-                    isCurrentLocation = true;
-                    pickupAddress = "Current Location";
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.edit_location),
-                title: Text('Add Address Manually'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showManualAddressInput();
-                },
-              ),
-            ],
+          content: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchUserAddresses(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Text('Error loading addresses: ${snapshot.error}');
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: Icon(Icons.home, color: primaryGreen),
+                      title: Text('No saved addresses found'),
+                      subtitle: Text('Please add a new address'),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.add_location_alt, color: primaryGreen),
+                      title: Text('Add New Address'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showAddressScreen();
+                      },
+                    ),
+                  ],
+                );
+              } else {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ...snapshot.data!.map((address) => ListTile(
+                              leading: Icon(Icons.home, color: primaryGreen),
+                              title: Text(address['address'] ?? 'Address'),
+                              onTap: () {
+                                setState(() {
+                                  isCurrentLocation = false;
+                                  pickupAddress = address['address'];
+                                });
+                                Navigator.pop(context);
+                              },
+                            )).toList(),
+                            const Divider(),
+                            ListTile(
+                              leading: Icon(Icons.add_location_alt, color: primaryGreen),
+                              title: Text('Add New Address'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _showAddressScreen();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+            },
           ),
         );
       },
     );
   }
 
-  void _showManualAddressInput() {
+  Future<List<Map<String, dynamic>>> _fetchUserAddresses() async {
+    List<Map<String, dynamic>> addresses = [];
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      try {
+        // Get address from user_details collection
+        final userData = await FirebaseFirestore.instance
+            .collection('user_details')
+            .doc(currentUser.uid)
+            .get();
+
+        if (userData.exists && userData.data()?['address'] != null) {
+          addresses.add({
+            'address': userData.data()?['address'],
+            'source': 'user_details'
+          });
+        }
+
+        // Get addresses from user_new_adress_list collection
+        final newAddresses = await FirebaseFirestore.instance
+            .collection('user_new_adress_list')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+
+        if (newAddresses.docs.isNotEmpty) {
+          for (var doc in newAddresses.docs) {
+            addresses.add({
+              'address': doc.data()['address'],
+              'source': 'user_new_adress_list',
+              'id': doc.id
+            });
+          }
+        }
+
+        // Get addresses from users_edited_details collection
+        final editedDetails = await FirebaseFirestore.instance
+            .collection('users_edited_details')
+            .where('userId', isEqualTo: currentUser.uid)
+            .orderBy('editedAt', descending: true)
+            .get();
+
+        if (editedDetails.docs.isNotEmpty) {
+          // Only add if it's not already in the list
+          final latestEdit = editedDetails.docs.first.data();
+          final updatedAddress = latestEdit['updated']['address'];
+
+          bool addressExists = addresses.any((addr) => addr['address'] == updatedAddress);
+
+          if (!addressExists && updatedAddress != null && updatedAddress.toString().isNotEmpty) {
+            addresses.add({
+              'address': updatedAddress,
+              'source': 'users_edited_details'
+            });
+          }
+        }
+      } catch (e) {
+        print('Error fetching addresses: $e');
+      }
+    }
+
+    return addresses;
+  }
+
+  void _showAddressScreen() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        String tempAddress = '';
-        return AlertDialog(
-          title: Text('Enter Address'),
-          content: TextField(
-            onChanged: (value) {
-              tempAddress = value;
-            },
-            decoration: InputDecoration(hintText: "Enter your address"),
-          ),
-          actions: [
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.pop(context);
-              },
-            ),
-            TextButton(
-              child: Text('Save'),
-              onPressed: () {
+      builder: (context) {
+        return AddressScreen(
+          onAddressSelected: (address) async {
+            // Save the new address to user_new_adress_list collection
+            final User? currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser != null) {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('user_new_adress_list')
+                    .add({
+                  'userId': currentUser.uid,
+                  'address': address,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+
                 setState(() {
                   isCurrentLocation = false;
-                  pickupAddress = tempAddress;
+                  pickupAddress = address;
                 });
-                Navigator.pop(context);
-              },
-            ),
-          ],
+
+                if (mounted) {
+                  CustomSnackbar.showSuccess(
+                    context: context,
+                    message: 'Address saved successfully!',
+                  );
+                }
+              } catch (e) {
+                print('Error saving address: $e');
+                if (mounted) {
+                  CustomSnackbar.showError(
+                    context: context,
+                    message: 'Failed to save address. Error: ${e.toString()}',
+                  );
+                }
+              }
+            }
+          },
         );
       },
     );

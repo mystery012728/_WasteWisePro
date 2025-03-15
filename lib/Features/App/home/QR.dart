@@ -94,6 +94,7 @@ class _ResultPageState extends State<ResultPage> {
 
   Future<void> _addToMissedPickups() async {
     try {
+      // Add to missed pickups collection
       await FirebaseFirestore.instance.collection('missed_pickups').add({
         'subscription_id': subscriptionData!['id'],
         'customer_id': subscriptionData!['customer_id'],
@@ -103,6 +104,14 @@ class _ResultPageState extends State<ResultPage> {
         'missed_at': DateTime.now(),
         'status': 'missed'
       });
+
+      // Update UI to show missed status
+      setState(() {
+        isPickupMissed = true;
+      });
+
+      // Trigger background service check
+      BackgroundService.initialize();
     } catch (e) {
       print('Error adding to missed pickups: $e');
     }
@@ -227,6 +236,9 @@ class _ResultPageState extends State<ResultPage> {
       // If pickup time has passed and not confirmed, mark as missed
       if (!_isWithinPickupWindow(subscriptionData!['pickup_time'])) {
         await _addToMissedPickups();
+        setState(() {
+          isPickupMissed = true;
+        });
       }
     }
 
@@ -1214,6 +1226,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
   late SharedPreferences prefs;
   List<String> scanHistory = [];
   bool isScanningEnabled = true;
+  bool _isStarting = false; // Track if camera is starting
 
   @override
   void initState() {
@@ -1230,13 +1243,36 @@ class _QRScannerPageState extends State<QRScannerPage> {
     final prefs = await SharedPreferences.getInstance();
     final scanningEnabled = prefs.getBool(SCANNING_ENABLED_KEY) ?? true;
 
-    if (mounted && scanningEnabled != isScanningEnabled) {
+    if (mounted) {
+      // Always update the scanning state when returning to the scanner
       setState(() {
         isScanningEnabled = scanningEnabled;
       });
-      // Reset scanning state when returning to scanner
-      if (scanningEnabled) {
+
+      // Ensure scanning is enabled when returning to scanner
+      if (!isScanningEnabled) {
+        // Re-enable scanning
+        setState(() {
+          isScanningEnabled = true;
+        });
         await prefs.setBool(SCANNING_ENABLED_KEY, true);
+      }
+
+      // Reset camera controller if needed
+      if (scanningEnabled && !_isStarting) {
+        // Restart camera if it's not already starting
+        setState(() {
+          _isStarting = true;
+        });
+        try {
+          await cameraController.start();
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isStarting = false;
+            });
+          }
+        }
       }
     }
   }
@@ -1306,6 +1342,15 @@ class _QRScannerPageState extends State<QRScannerPage> {
                 ).then((_) {
                   // Check if scanning should be re-enabled
                   _checkScanningStatus();
+
+                  // Ensure camera is restarted
+                  if (mounted) {
+                    setState(() {
+                      isScanningEnabled = true;
+                    });
+                    // Restart camera controller
+                    cameraController.start();
+                  }
                 });
                 break;
               }

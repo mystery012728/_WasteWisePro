@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -14,12 +15,274 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutternew/Features/App/profile/awareness_videos.dart';
 import 'package:flutternew/Features/App/profile/rewards.dart';
+import 'package:http/http.dart' as http;
 
 class profile extends StatefulWidget {
   const profile({Key? key}) : super(key: key);
 
   @override
   _ProfilePageState createState() => _ProfilePageState();
+}
+
+class AddressScreen extends StatefulWidget {
+  final Function(String) onAddressSelected;
+
+  const AddressScreen({Key? key, required this.onAddressSelected}) : super(key: key);
+
+  @override
+  State<AddressScreen> createState() => _AddressScreenState();
+}
+
+class _AddressScreenState extends State<AddressScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _pincodeController = TextEditingController();
+  final TextEditingController _houseController = TextEditingController();
+  final TextEditingController _roadController = TextEditingController();
+  String? _city;
+  String? _state;
+  final Color primaryGreen = const Color(0xFF2E7D32);
+  final Color lightGreen = const Color(0xFF4CAF50);
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _pincodeController.dispose();
+    _houseController.dispose();
+    _roadController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchLocationDetails(String pincode) async {
+    if (pincode.length != 6) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await http.get(
+          Uri.parse("http://www.postalpincode.in/api/pincode/$pincode")
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        if (jsonResponse['Status'] == 'Success') {
+          final postOffice = jsonResponse['PostOffice'][0];
+          setState(() {
+            _city = postOffice['District'];
+            _state = postOffice['State'];
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _city = null;
+            _state = null;
+            _isLoading = false;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Invalid pincode.')),
+            );
+          }
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        throw Exception('Failed to load location details');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching location: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  InputDecoration _buildInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.poppins(color: Colors.grey[600]),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: primaryGreen, width: 2),
+      ),
+      filled: true,
+      fillColor: Colors.grey[50],
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    );
+  }
+
+  void _submitAddress() {
+    if (_formKey.currentState!.validate()) {
+      String address = '${_houseController.text}, ${_roadController.text}, ${_city ?? ''}, ${_state ?? ''}, ${_pincodeController.text}';
+      widget.onAddressSelected(address);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 8,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add Delivery Address',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: primaryGreen,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _houseController,
+                  decoration: _buildInputDecoration('House no / Building Name'),
+                  style: GoogleFonts.poppins(),
+                  validator: (value) =>
+                  value?.isEmpty ?? true ? 'Please enter building name' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _roadController,
+                  decoration: _buildInputDecoration('Road Name / Area / Colony'),
+                  style: GoogleFonts.poppins(),
+                  validator: (value) =>
+                  value?.isEmpty ?? true ? 'Please enter road name' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _pincodeController,
+                  decoration: _buildInputDecoration('Pincode'),
+                  style: GoogleFonts.poppins(),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) return 'Please enter pincode';
+                    if (value!.length != 6)
+                      return 'Please enter a valid 6-digit pincode';
+                    return null;
+                  },
+                  onChanged: (value) {
+                    if (value.length == 6) {
+                      _fetchLocationDetails(value);
+                    } else {
+                      setState(() {
+                        _city = null;
+                        _state = null;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          TextFormField(
+                            decoration: _buildInputDecoration('City'),
+                            controller: TextEditingController(text: _city),
+                            style: GoogleFonts.poppins(),
+                            readOnly: true,
+                            enabled: !_isLoading,
+                            validator: (value) => _city == null || _city!.isEmpty
+                                ? 'Please enter valid pincode to get city' : null,
+                          ),
+                          if (_isLoading)
+                            Positioned(
+                              right: 10,
+                              top: 15,
+                              child: SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(primaryGreen),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        decoration: _buildInputDecoration('State'),
+                        controller: TextEditingController(text: _state),
+                        style: GoogleFonts.poppins(),
+                        readOnly: true,
+                        enabled: !_isLoading,
+                        validator: (value) => _state == null || _state!.isEmpty
+                            ? 'Please enter valid pincode to get state' : null,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey[700],
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: _submitAddress,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: Text(
+                        'Save Address',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ProfilePageState extends State<profile>
@@ -143,6 +406,66 @@ class _ProfilePageState extends State<profile>
         });
         // Update cached data
         _saveCachedData();
+      }
+    } catch (e) {
+      print('Error updating user data: $e');
+    }
+  }
+
+  Future<void> _updateAllUserData(String newName, String newEmail, String newMobile, String newAddress) async {
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        // Get current user data for storing previous values
+        final userData = await FirebaseFirestore.instance
+            .collection('user_details')
+            .doc(currentUser.uid)
+            .get();
+
+        if (userData.exists) {
+          // Store previous and updated details in users_edited_details collection
+          await FirebaseFirestore.instance
+              .collection('users_edited_details')
+              .add({
+            'userId': currentUser.uid,
+            'previous': {
+              'fullName': _name,
+              'email': _email,
+              'mobile': _mobile,
+              'address': _address,
+            },
+            'updated': {
+              'fullName': newName,
+              'email': newEmail,
+              'mobile': newMobile,
+              'address': newAddress,
+            },
+            'editedAt': FieldValue.serverTimestamp(),
+          });
+
+          // Update user details in the main collection
+          await FirebaseFirestore.instance
+              .collection('user_details')
+              .doc(currentUser.uid)
+              .update({
+            'fullName': newName,
+            'email': newEmail,
+            'mobile': newMobile,
+            'address': newAddress,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+
+          // Update local state
+          setState(() {
+            _name = newName;
+            _email = newEmail;
+            _mobile = newMobile;
+            _address = newAddress;
+          });
+
+          // Update cached data
+          _saveCachedData();
+        }
       }
     } catch (e) {
       print('Error updating user data: $e');
@@ -345,34 +668,103 @@ class _ProfilePageState extends State<profile>
   }
 
   void _editProfileName(BuildContext context) {
-    final TextEditingController nameController =
-    TextEditingController(text: _name);
+    final TextEditingController nameController = TextEditingController(text: _name);
+    final TextEditingController emailController = TextEditingController(text: _email);
+    final TextEditingController mobileController = TextEditingController(text: _mobile);
+    final TextEditingController addressController = TextEditingController(text: _address);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          'Edit Profile Name',
+          'Edit Profile',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
             color: Colors.green.shade800,
           ),
         ),
-        content: TextField(
-          controller: nameController,
-          style: GoogleFonts.poppins(),
-          decoration: InputDecoration(
-            labelText: 'Name',
-            labelStyle: GoogleFonts.poppins(color: Colors.green.shade600),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: Colors.green.shade200),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: Colors.green.shade600, width: 2),
-            ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                style: GoogleFonts.poppins(),
+                decoration: InputDecoration(
+                  labelText: 'Name',
+                  labelStyle: GoogleFonts.poppins(color: Colors.green.shade600),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green.shade200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green.shade600, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailController,
+                style: GoogleFonts.poppins(),
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: GoogleFonts.poppins(color: Colors.green.shade600),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green.shade200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green.shade600, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: mobileController,
+                style: GoogleFonts.poppins(),
+                decoration: InputDecoration(
+                  labelText: 'Mobile',
+                  labelStyle: GoogleFonts.poppins(color: Colors.green.shade600),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green.shade200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.green.shade600, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showAddressScreen(addressController);
+                },
+                child: AbsorbPointer(
+                  child: TextField(
+                    controller: addressController,
+                    style: GoogleFonts.poppins(),
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Address',
+                      labelStyle: GoogleFonts.poppins(color: Colors.green.shade600),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.green.shade200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.green.shade600, width: 2),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
@@ -386,7 +778,12 @@ class _ProfilePageState extends State<profile>
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
-                await _updateUserData(nameController.text);
+                await _updateAllUserData(
+                  nameController.text,
+                  emailController.text,
+                  mobileController.text,
+                  addressController.text,
+                );
                 Navigator.of(context).pop();
               }
             },
@@ -403,6 +800,20 @@ class _ProfilePageState extends State<profile>
           ),
         ],
       ),
+    );
+  }
+
+  void _showAddressScreen(TextEditingController addressController) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AddressScreen(
+          onAddressSelected: (address) {
+            addressController.text = address;
+            _editProfileName(context);
+          },
+        );
+      },
     );
   }
 
@@ -507,7 +918,7 @@ class _ProfilePageState extends State<profile>
                     ? FileImage(_profileImage!)
                     : _profilePhotoUrl.isNotEmpty
                     ? NetworkImage(_profilePhotoUrl) as ImageProvider
-                    : const AssetImage('assets/profile_picture.jpg'),
+                    : const AssetImage('images/profile.jpg'),
               ),
             ),
             Positioned(
@@ -551,6 +962,15 @@ class _ProfilePageState extends State<profile>
             color: Colors.green.shade600,
           ),
         ).animate().fadeIn(delay: 700.ms),
+        const SizedBox(height: 8),
+        Text(
+          _address.isNotEmpty ? _address : 'No address added',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            color: Colors.green.shade600,
+          ),
+        ).animate().fadeIn(delay: 800.ms),
         const SizedBox(height: 16),
         ElevatedButton(
           onPressed: () => _editProfileName(context),

@@ -6,6 +6,7 @@ import 'package:flutternew/Features/App/home/home.dart';
 import 'package:flutternew/Features/App/payment/razer_pay.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutternew/Features/App/home/subscription.dart';
 
 class SpecialDaysPage extends StatefulWidget {
   const SpecialDaysPage({super.key});
@@ -363,36 +364,184 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
             'Select Address Option',
             style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(Icons.my_location, color: primaryGreen),
-                title: Text(
-                  'Use Current Location',
-                  style: GoogleFonts.poppins(),
-                ),
-                onTap: () {
-                  setState(() {
-                    isCurrentLocation = true;
-                    pickupAddress = "Current Location";
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.edit_location, color: primaryGreen),
-                title: Text(
-                  'Add Address Manually',
-                  style: GoogleFonts.poppins(),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showManualAddressInput();
-                },
-              ),
-            ],
+          content: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchUserAddresses(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Text('Error loading addresses: ${snapshot.error}');
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: Icon(Icons.add_location_alt, color: primaryGreen),
+                      title: Text('Add New Address'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showAddressScreen();
+                      },
+                    ),
+                  ],
+                );
+              } else {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+
+                            ...snapshot.data!
+                                .map((address) => ListTile(
+                              leading:
+                              Icon(Icons.home, color: primaryGreen),
+                              title:
+                              Text(address['address'] ?? 'Address'),
+                              onTap: () {
+                                setState(() {
+                                  isCurrentLocation = false;
+                                  pickupAddress = address['address'];
+                                });
+                                Navigator.pop(context);
+                              },
+                            ))
+                                .toList(),
+                            const Divider(),
+                            ListTile(
+                              leading: Icon(Icons.add_location_alt,
+                                  color: primaryGreen),
+                              title: Text('Add New Address'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _showAddressScreen();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+            },
           ),
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchUserAddresses() async {
+    List<Map<String, dynamic>> addresses = [];
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      try {
+        // Get address from user_details collection
+        final userData = await FirebaseFirestore.instance
+            .collection('user_details')
+            .doc(currentUser.uid)
+            .get();
+
+        if (userData.exists && userData.data()?['address'] != null) {
+          addresses.add({
+            'address': userData.data()?['address'],
+            'source': 'user_details'
+          });
+        }
+
+        // Get addresses from user_new_adress_list collection
+        final newAddresses = await FirebaseFirestore.instance
+            .collection('user_new_adress_list')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+
+        if (newAddresses.docs.isNotEmpty) {
+          for (var doc in newAddresses.docs) {
+            addresses.add({
+              'address': doc.data()['address'],
+              'source': 'user_new_adress_list',
+              'id': doc.id
+            });
+          }
+        }
+
+        // Get addresses from users_edited_details collection
+        final editedDetails = await FirebaseFirestore.instance
+            .collection('users_edited_details')
+            .where('userId', isEqualTo: currentUser.uid)
+            .orderBy('editedAt', descending: true)
+            .get();
+
+        if (editedDetails.docs.isNotEmpty) {
+          // Only add if it's not already in the list
+          final latestEdit = editedDetails.docs.first.data();
+          final updatedAddress = latestEdit['updated']['address'];
+
+          bool addressExists =
+          addresses.any((addr) => addr['address'] == updatedAddress);
+
+          if (!addressExists &&
+              updatedAddress != null &&
+              updatedAddress.toString().isNotEmpty) {
+            addresses.add(
+                {'address': updatedAddress, 'source': 'users_edited_details'});
+          }
+        }
+      } catch (e) {
+        print('Error fetching addresses: $e');
+      }
+    }
+
+    return addresses;
+  }
+
+  void _showAddressScreen() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AddressScreen(
+          onAddressSelected: (address) async {
+            // Save the new address to user_new_adress_list collection
+            final User? currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser != null) {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('user_new_adress_list')
+                    .add({
+                  'userId': currentUser.uid,
+                  'address': address,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+
+                setState(() {
+                  isCurrentLocation = false;
+                  pickupAddress = address;
+                });
+
+                if (mounted) {
+                  CustomSnackbar.showSuccess(
+                    context: context,
+                    message: 'Address added successfully!',
+                  );
+                }
+              } catch (e) {
+                print('Error saving address: $e');
+                if (mounted) {
+                  CustomSnackbar.showError(
+                    context: context,
+                    message: 'Failed to save address. Please try again.',
+                  );
+                }
+              }
+            }
+          },
         );
       },
     );
@@ -1006,4 +1155,3 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
     );
   }
 }
-

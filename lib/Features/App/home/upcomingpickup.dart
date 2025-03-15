@@ -15,6 +15,7 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
   final Color primaryGreen = const Color(0xFF2E7D32);
   Map<String, bool> cancelledSubscriptions = {};
   Map<String, bool> confirmedPickups = {};
+  Map<String, bool> missedPickups = {};
 
   @override
   void initState() {
@@ -27,6 +28,7 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
   Future<void> _loadCancelledAndConfirmedPickups() async {
     await _loadCancelledSubscriptions();
     await _loadConfirmedPickups();
+    await _loadMissedPickups();
   }
 
   Future<void> _loadCancelledSubscriptions() async {
@@ -53,7 +55,8 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
         .collection('successful_pickups')
         .where('pickup_date', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
         .where('pickup_date',
-        isLessThanOrEqualTo: Timestamp.fromDate(today.add(Duration(days: 1))))
+        isLessThanOrEqualTo:
+        Timestamp.fromDate(today.add(Duration(days: 1))))
         .get();
 
     setState(() {
@@ -69,12 +72,41 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
     });
   }
 
+  Future<void> _loadMissedPickups() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final missedDocs = await FirebaseFirestore.instance
+        .collection('missed_pickups')
+        .where('missed_at', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
+        .where('missed_at',
+        isLessThanOrEqualTo:
+        Timestamp.fromDate(today.add(Duration(days: 1))))
+        .get();
+
+    setState(() {
+      for (var doc in missedDocs.docs) {
+        final data = doc.data();
+        if (data['subscription_id'] != null) {
+          missedPickups[data['subscription_id']] = true;
+        }
+        if (data['special_day_id'] != null) {
+          missedPickups[data['special_day_id']] = true;
+        }
+      }
+    });
+  }
+
   bool isSubscriptionCancelledForToday(String subscriptionId) {
     return cancelledSubscriptions[subscriptionId] ?? false;
   }
 
   bool isPickupConfirmedForToday(String id) {
     return confirmedPickups[id] ?? false;
+  }
+
+  bool isPickupMissedForToday(String id) {
+    return missedPickups[id] ?? false;
   }
 
   bool _isWithinPickupWindow(String pickupTime) {
@@ -408,27 +440,27 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
                 ],
               ),
             )
-          else if (isCancelled)
+          else if (isPickupMissedForToday(docId))
             Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              color: Colors.red.shade50,
+              color: Colors.orange.shade50,
               child: Row(
                 children: [
-                  Icon(Icons.cancel, color: Colors.red),
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange),
                   SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Today\'s pickup is cancelled',
+                          'Today\'s pickup was missed',
                           style: GoogleFonts.poppins(
-                            color: Colors.red,
+                            color: Colors.orange[800],
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         Text(
-                          'Service will resume tomorrow at $pickupTime',
+                          'Next pickup scheduled for tomorrow at $pickupTime',
                           style: GoogleFonts.poppins(
                             color: Colors.grey[600],
                             fontSize: 12,
@@ -439,12 +471,46 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
                   ),
                 ],
               ),
-            ),
+            )
+          else if (isCancelled)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                color: Colors.red.shade50,
+                child: Row(
+                  children: [
+                    Icon(Icons.cancel, color: Colors.red),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Today\'s pickup is cancelled',
+                            style: GoogleFonts.poppins(
+                              color: Colors.red,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            'Service will resume tomorrow at $pickupTime',
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           Row(
             children: [
               Expanded(
                 child: TextButton.icon(
-                  onPressed: isCancelled ? null : () {
+                  onPressed: isCancelled
+                      ? null
+                      : () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -455,10 +521,12 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
                       ),
                     );
                   },
-                  icon: Icon(Icons.location_on, color: isCancelled ? Colors.grey : primaryGreen),
+                  icon: Icon(Icons.location_on,
+                      color: isCancelled ? Colors.grey : primaryGreen),
                   label: Text(
                     'Track',
-                    style: GoogleFonts.poppins(color: isCancelled ? Colors.grey : primaryGreen),
+                    style: GoogleFonts.poppins(
+                        color: isCancelled ? Colors.grey : primaryGreen),
                   ),
                 ),
               ),
@@ -469,12 +537,16 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
               ),
               Expanded(
                 child: TextButton.icon(
-                  onPressed: isCancelled ? null : () =>
-                      _showChangePickupTimeDialog(context, docId, pickupTime),
-                  icon: Icon(Icons.access_time, color: isCancelled ? Colors.grey : primaryGreen),
+                  onPressed: isCancelled
+                      ? null
+                      : () => _showChangePickupTimeDialog(
+                      context, docId, pickupTime),
+                  icon: Icon(Icons.access_time,
+                      color: isCancelled ? Colors.grey : primaryGreen),
                   label: Text(
                     'Change Time',
-                    style: GoogleFonts.poppins(color: isCancelled ? Colors.grey : primaryGreen),
+                    style: GoogleFonts.poppins(
+                        color: isCancelled ? Colors.grey : primaryGreen),
                   ),
                 ),
               ),
@@ -485,12 +557,16 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
               ),
               Expanded(
                 child: TextButton.icon(
-                  onPressed: isCancelled ? null : () =>
-                      _showCancelDialog(context, docId, 'subscription_details'),
-                  icon: Icon(Icons.cancel_outlined, color: isCancelled ? Colors.grey : Colors.red),
+                  onPressed: isCancelled
+                      ? null
+                      : () => _showCancelDialog(
+                      context, docId, 'subscription_details'),
+                  icon: Icon(Icons.cancel_outlined,
+                      color: isCancelled ? Colors.grey : Colors.red),
                   label: Text(
                     'Cancel',
-                    style: GoogleFonts.poppins(color: isCancelled ? Colors.grey : Colors.red),
+                    style: GoogleFonts.poppins(
+                        color: isCancelled ? Colors.grey : Colors.red),
                   ),
                 ),
               ),
@@ -580,8 +656,7 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
                 ],
               ),
             )
-          else if (!_isWithinPickupWindow(pickupTime) &&
-              DateTime.now().isAfter(pickupDate))
+          else if (isPickupMissedForToday(docId))
             Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               color: Colors.orange.shade50,
@@ -600,7 +675,28 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
                   ),
                 ],
               ),
-            ),
+            )
+          else if (!_isWithinPickupWindow(pickupTime) &&
+                DateTime.now().isAfter(pickupDate))
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                color: Colors.orange.shade50,
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Special day pickup was missed',
+                        style: GoogleFonts.poppins(
+                          color: Colors.orange[800],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           Row(
             children: [
               Expanded(
