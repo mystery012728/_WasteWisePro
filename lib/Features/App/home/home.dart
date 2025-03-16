@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutternew/Features/App/home/specialday.dart';
 import 'package:flutternew/Features/App/home/subscription.dart';
 import 'package:flutternew/Features/App/home/upcomingpickup.dart';
+import 'package:flutternew/Features/App/notification/notification.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
@@ -85,6 +86,18 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
               fontSize: MediaQuery.of(context).size.width * 0.05, // Responsive font size
             ),
           ),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.notifications, color: Colors.white)
+                  .animate()
+                  .fade()
+                  .scale(delay: 200.ms),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationsPage()),
+              ),
+            ),
+          ],
         ),
         body: PageView(
           controller: _pageController,

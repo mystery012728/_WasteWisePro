@@ -94,6 +94,7 @@ dependencies:
   open_file: ^3.3.2
   video_player: ^2.8.2
   uuid: ^4.3.3
+  youtube_player_flutter: ^8.1.2
 
 dev_dependencies:
   flutter_test:

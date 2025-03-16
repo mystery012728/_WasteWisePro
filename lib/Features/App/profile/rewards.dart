@@ -92,7 +92,8 @@ class _RewardsPageState extends State<RewardsPage> {
 
         // Add household waste weights
         if (data['household_waste_weights'] != null) {
-          final householdWeights = data['household_waste_weights'] as Map<String, dynamic>;
+          final householdWeights =
+          data['household_waste_weights'] as Map<String, dynamic>;
           householdWeights.forEach((type, weight) {
             if (weight is num) {
               pickupWeight += weight.toDouble();
@@ -102,7 +103,8 @@ class _RewardsPageState extends State<RewardsPage> {
 
         // Add commercial waste weights
         if (data['commercial_waste_weights'] != null) {
-          final commercialWeights = data['commercial_waste_weights'] as Map<String, dynamic>;
+          final commercialWeights =
+          data['commercial_waste_weights'] as Map<String, dynamic>;
           commercialWeights.forEach((type, weight) {
             if (weight is num) {
               pickupWeight += weight.toDouble();
@@ -159,6 +161,21 @@ class _RewardsPageState extends State<RewardsPage> {
         recentActivities = activities;
         isLoading = false;
       });
+
+      // Check if goal is completed and store notification
+      final goal = isMonthlyView ? monthlyGoal : yearlyGoal;
+      if (total >= goal) {
+        final periodType = isMonthlyView ? 'Monthly' : 'Yearly';
+        final period = isMonthlyView ? currentMonth : currentYear;
+
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'user_id': userId,
+          'message':
+          'Congratulations! You have completed your $periodType Goal for $period. Check it out!',
+          'created_at': Timestamp.now(),
+          'read': false
+        });
+      }
     } catch (e) {
       print('Error loading pickup data: $e');
       setState(() {
@@ -222,7 +239,10 @@ class _RewardsPageState extends State<RewardsPage> {
                     _buildRewardsSummary(),
                     const SizedBox(height: 24),
                     _buildRecentActivities(),
-                  ].animate(interval: 200.ms).fadeIn().slideY(begin: 0.2, end: 0),
+                  ]
+                      .animate(interval: 200.ms)
+                      .fadeIn()
+                      .slideY(begin: 0.2, end: 0),
                 ),
               ),
             ),
@@ -383,8 +403,10 @@ class _RewardsPageState extends State<RewardsPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildWasteStat('$periodType Goal', '$goal kg'),
-              _buildWasteStat('Collected', '${totalWasteCollected.toStringAsFixed(1)} kg'),
-              _buildWasteStat('Progress', '${((totalWasteCollected/goal)*100).toStringAsFixed(0)}%'),
+              _buildWasteStat(
+                  'Collected', '${totalWasteCollected.toStringAsFixed(1)} kg'),
+              _buildWasteStat('Progress',
+                  '${((totalWasteCollected / goal) * 100).toStringAsFixed(0)}%'),
             ],
           ),
         ],
@@ -441,13 +463,13 @@ class _RewardsPageState extends State<RewardsPage> {
             ),
           )
         else
-          ...recentActivities.map((activity) =>
-              _buildActivityItem(
-                icon: activity['icon'],
-                title: activity['title'],
-                points: activity['points'],
-                date: activity['date'],
-              ),
+          ...recentActivities.map(
+                (activity) => _buildActivityItem(
+              icon: activity['icon'],
+              title: activity['title'],
+              points: activity['points'],
+              date: activity['date'],
+            ),
           ),
       ],
     );
@@ -516,4 +538,3 @@ class _RewardsPageState extends State<RewardsPage> {
     );
   }
 }
-
