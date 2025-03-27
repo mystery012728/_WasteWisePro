@@ -151,6 +151,13 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
       // Get current user
       final user = FirebaseAuth.instance.currentUser;
 
+      // Parse name and mobile from pickup address
+      List<String> addressParts = pickupAddress!.split('\n');
+      List<String> contactInfo = addressParts[0].split(' - ');
+      String fullname = contactInfo[0];
+      String mobile = contactInfo[1];
+      String address = addressParts[1];
+
       // Prepare the data to be stored in Firestore
       Map<String, dynamic> specialDayData = {
         'userId': user?.uid,
@@ -158,7 +165,9 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
         'pickup_date': selectedDate,
         'pickup_time': selectedTime?.format(context),
         'type': isWasteSelected ? 'waste' : 'scrap',
-        'pickup_address': pickupAddress,
+        'customer_fullname': fullname,
+        'customer_mobile': mobile,
+        'pickup_address': address,
         'is_current_location': isCurrentLocation,
         'total_price': calculateTotalPrice(),
         'payment_status': 'completed',
@@ -183,7 +192,9 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
           // Get selected household waste types
           List<String> selectedHouseholdWaste = [];
           List<String> householdWasteTypes = [
-            'Mix waste (Wet & Dry)', 'Wet Waste', 'Dry Waste'
+            'Mix waste (Wet & Dry)',
+            'Wet Waste',
+            'Dry Waste'
           ];
 
           for (int i = 0; i < householdWasteSelection.length; i++) {
@@ -196,7 +207,10 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
           // Get selected commercial waste types
           List<String> selectedCommercialWaste = [];
           List<String> commercialWasteTypes = [
-            'Restaurant', 'Meat & Vegetable Stall', 'Plastic Waste', 'Others'
+            'Restaurant',
+            'Meat & Vegetable Stall',
+            'Plastic Waste',
+            'Others'
           ];
 
           for (int i = 0; i < commercialWasteSelection.length; i++) {
@@ -219,12 +233,13 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
           transaction.set(pickupRef, {
             'special_day_id': specialDayRef.id,
             'userId': user?.uid,
-            'customer_id': null, // Add customer ID if available
+            'customer_fullname': fullname,
+            'customer_mobile': mobile,
             'pickup_date': Timestamp.fromDate(selectedDate!),
             'scheduled_time': selectedTime?.format(context),
             'type': 'special_day',
             'waste_type': 'waste',
-            'pickup_address': pickupAddress,
+            'pickup_address': address,
             'status': 'active',
             'created_at': FieldValue.serverTimestamp(),
             'household_waste': selectedHouseholdWaste,
@@ -252,12 +267,13 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
           transaction.set(pickupRef, {
             'special_day_id': specialDayRef.id,
             'userId': user?.uid,
-            'customer_id': null, // Add customer ID if available
+            'customer_fullname': fullname,
+            'customer_mobile': mobile,
             'pickup_date': Timestamp.fromDate(selectedDate!),
             'scheduled_time': selectedTime?.format(context),
             'type': 'special_day',
             'waste_type': 'scrap',
-            'pickup_address': pickupAddress,
+            'pickup_address': address,
             'status': 'active',
             'created_at': FieldValue.serverTimestamp(),
             'scrap_types': scrapTypes,
@@ -376,7 +392,13 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ListTile(
-                      leading: Icon(Icons.add_location_alt, color: primaryGreen),
+                      leading: Icon(Icons.home, color: primaryGreen),
+                      title: Text('No saved addresses found'),
+                      subtitle: Text('Please add a new address'),
+                    ),
+                    ListTile(
+                      leading:
+                      Icon(Icons.add_location_alt, color: primaryGreen),
                       title: Text('Add New Address'),
                       onTap: () {
                         Navigator.pop(context);
@@ -397,17 +419,27 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-
                             ...snapshot.data!
-                                .map((address) => ListTile(
+                                .map((addressData) => ListTile(
                               leading:
                               Icon(Icons.home, color: primaryGreen),
-                              title:
-                              Text(address['address'] ?? 'Address'),
+                              title: Text(
+                                  addressData['name'] ?? 'Full Name'),
+                              subtitle: Column(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Text(addressData['mobile'] ??
+                                      'Mobile'),
+                                  Text(addressData['address'] ??
+                                      'Address'),
+                                ],
+                              ),
                               onTap: () {
                                 setState(() {
                                   isCurrentLocation = false;
-                                  pickupAddress = address['address'];
+                                  pickupAddress =
+                                  '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
                                 });
                                 Navigator.pop(context);
                               },
@@ -443,55 +475,21 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
 
     if (currentUser != null) {
       try {
-        // Get address from user_details collection
-        final userData = await FirebaseFirestore.instance
-            .collection('user_details')
-            .doc(currentUser.uid)
-            .get();
-
-        if (userData.exists && userData.data()?['address'] != null) {
-          addresses.add({
-            'address': userData.data()?['address'],
-            'source': 'user_details'
-          });
-        }
-
-        // Get addresses from user_new_adress_list collection
+        // Get addresses from user_adress_list collection only
         final newAddresses = await FirebaseFirestore.instance
-            .collection('user_new_adress_list')
+            .collection('user_adress_list')
             .where('userId', isEqualTo: currentUser.uid)
             .get();
 
         if (newAddresses.docs.isNotEmpty) {
           for (var doc in newAddresses.docs) {
             addresses.add({
+              'name': doc.data()['fullname'] ?? 'Full Name not provided',
+              'mobile': doc.data()['mobile'] ?? 'Mobile not provided',
               'address': doc.data()['address'],
-              'source': 'user_new_adress_list',
+              'source': 'user_adress_list',
               'id': doc.id
             });
-          }
-        }
-
-        // Get addresses from users_edited_details collection
-        final editedDetails = await FirebaseFirestore.instance
-            .collection('users_edited_details')
-            .where('userId', isEqualTo: currentUser.uid)
-            .orderBy('editedAt', descending: true)
-            .get();
-
-        if (editedDetails.docs.isNotEmpty) {
-          // Only add if it's not already in the list
-          final latestEdit = editedDetails.docs.first.data();
-          final updatedAddress = latestEdit['updated']['address'];
-
-          bool addressExists =
-          addresses.any((addr) => addr['address'] == updatedAddress);
-
-          if (!addressExists &&
-              updatedAddress != null &&
-              updatedAddress.toString().isNotEmpty) {
-            addresses.add(
-                {'address': updatedAddress, 'source': 'users_edited_details'});
           }
         }
       } catch (e) {
@@ -507,28 +505,30 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
       context: context,
       builder: (context) {
         return AddressScreen(
-          onAddressSelected: (address) async {
-            // Save the new address to user_new_adress_list collection
+          onAddressSelected: (addressData) async {
             final User? currentUser = FirebaseAuth.instance.currentUser;
             if (currentUser != null) {
               try {
                 await FirebaseFirestore.instance
-                    .collection('user_new_adress_list')
+                    .collection('user_adress_list')
                     .add({
                   'userId': currentUser.uid,
-                  'address': address,
+                  'fullname': addressData['name'],
+                  'mobile': addressData['mobile'],
+                  'address': addressData['address'],
                   'createdAt': FieldValue.serverTimestamp(),
                 });
 
                 setState(() {
                   isCurrentLocation = false;
-                  pickupAddress = address;
+                  pickupAddress =
+                  '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
                 });
 
                 if (mounted) {
                   CustomSnackbar.showSuccess(
                     context: context,
-                    message: 'Address added successfully!',
+                    message: 'Address saved successfully!',
                   );
                 }
               } catch (e) {
@@ -536,7 +536,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                 if (mounted) {
                   CustomSnackbar.showError(
                     context: context,
-                    message: 'Failed to save address. Please try again.',
+                    message: 'Failed to save address. Error: ${e.toString()}',
                   );
                 }
               }

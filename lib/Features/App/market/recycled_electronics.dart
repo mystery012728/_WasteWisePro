@@ -10,7 +10,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-
 class RecycledElectronics extends StatefulWidget {
   @override
   _RecycledElectronicsState createState() => _RecycledElectronicsState();
@@ -306,6 +305,7 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
       'image': image,
       'oldPrice': oldPrice,
       'quantity': 1,
+      'category': 'recycled_electronics',
     });
     if (mounted) {
       CustomSnackbar.showSuccess(

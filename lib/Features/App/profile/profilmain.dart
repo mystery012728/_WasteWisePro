@@ -27,7 +27,8 @@ class profile extends StatefulWidget {
 class AddressScreen extends StatefulWidget {
   final Function(String) onAddressSelected;
 
-  const AddressScreen({Key? key, required this.onAddressSelected}) : super(key: key);
+  const AddressScreen({Key? key, required this.onAddressSelected})
+      : super(key: key);
 
   @override
   State<AddressScreen> createState() => _AddressScreenState();
@@ -60,9 +61,8 @@ class _AddressScreenState extends State<AddressScreen> {
     });
 
     try {
-      final response = await http.get(
-          Uri.parse("http://www.postalpincode.in/api/pincode/$pincode")
-      );
+      final response = await http
+          .get(Uri.parse("http://www.postalpincode.in/api/pincode/$pincode"));
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -127,7 +127,9 @@ class _AddressScreenState extends State<AddressScreen> {
 
   void _submitAddress() {
     if (_formKey.currentState!.validate()) {
-      String address = '${_houseController.text}, ${_roadController.text}, ${_city ?? ''}, ${_state ?? ''}, ${_pincodeController.text}';
+      String address =
+          '${_houseController.text}, ${_roadController.text}, ${_city ?? ''}, ${_state ?? ''}, ${_pincodeController.text}';
+      Navigator.pop(context); // Close the address dialog
       widget.onAddressSelected(address);
     }
   }
@@ -161,13 +163,15 @@ class _AddressScreenState extends State<AddressScreen> {
                   controller: _houseController,
                   decoration: _buildInputDecoration('House no / Building Name'),
                   style: GoogleFonts.poppins(),
-                  validator: (value) =>
-                  value?.isEmpty ?? true ? 'Please enter building name' : null,
+                  validator: (value) => value?.isEmpty ?? true
+                      ? 'Please enter building name'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _roadController,
-                  decoration: _buildInputDecoration('Road Name / Area / Colony'),
+                  decoration:
+                  _buildInputDecoration('Road Name / Area / Colony'),
                   style: GoogleFonts.poppins(),
                   validator: (value) =>
                   value?.isEmpty ?? true ? 'Please enter road name' : null,
@@ -207,8 +211,10 @@ class _AddressScreenState extends State<AddressScreen> {
                             style: GoogleFonts.poppins(),
                             readOnly: true,
                             enabled: !_isLoading,
-                            validator: (value) => _city == null || _city!.isEmpty
-                                ? 'Please enter valid pincode to get city' : null,
+                            validator: (value) =>
+                            _city == null || _city!.isEmpty
+                                ? 'Please enter valid pincode to get city'
+                                : null,
                           ),
                           if (_isLoading)
                             Positioned(
@@ -219,7 +225,8 @@ class _AddressScreenState extends State<AddressScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(primaryGreen),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      primaryGreen),
                                 ),
                               ),
                             ),
@@ -235,7 +242,8 @@ class _AddressScreenState extends State<AddressScreen> {
                         readOnly: true,
                         enabled: !_isLoading,
                         validator: (value) => _state == null || _state!.isEmpty
-                            ? 'Please enter valid pincode to get state' : null,
+                            ? 'Please enter valid pincode to get state'
+                            : null,
                       ),
                     ),
                   ],
@@ -265,7 +273,8 @@ class _AddressScreenState extends State<AddressScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
                       ),
                       child: Text(
                         'Save Address',
@@ -412,18 +421,31 @@ class _ProfilePageState extends State<profile>
     }
   }
 
-  Future<void> _updateAllUserData(String newName, String newEmail, String newMobile, String newAddress) async {
+  Future<void> _updateAllUserData(String newName, String newEmail,
+      String newMobile, String newAddress) async {
     try {
       final User? currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
-        // Get current user data for storing previous values
-        final userData = await FirebaseFirestore.instance
-            .collection('user_details')
-            .doc(currentUser.uid)
-            .get();
+        // Show loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade800),
+            ),
+          ),
+        );
 
-        if (userData.exists) {
-          // Store previous and updated details in users_edited_details collection
+        // Identify which fields were changed
+        List<String> changedFields = [];
+        if (newName != _name) changedFields.add('fullName');
+        if (newEmail != _email) changedFields.add('email');
+        if (newMobile != _mobile) changedFields.add('mobile');
+        if (newAddress != _address) changedFields.add('address');
+
+        // Store edit history only if there are changes
+        if (changedFields.isNotEmpty) {
           await FirebaseFirestore.instance
               .collection('users_edited_details')
               .add({
@@ -441,33 +463,65 @@ class _ProfilePageState extends State<profile>
               'address': newAddress,
             },
             'editedAt': FieldValue.serverTimestamp(),
+            'fieldsEdited': changedFields,
           });
-
-          // Update user details in the main collection
-          await FirebaseFirestore.instance
-              .collection('user_details')
-              .doc(currentUser.uid)
-              .update({
-            'fullName': newName,
-            'email': newEmail,
-            'mobile': newMobile,
-            'address': newAddress,
-            'lastUpdated': FieldValue.serverTimestamp(),
-          });
-
-          // Update local state
-          setState(() {
-            _name = newName;
-            _email = newEmail;
-            _mobile = newMobile;
-            _address = newAddress;
-          });
-
-          // Update cached data
-          _saveCachedData();
         }
+
+        // Update user details in the main collection
+        await FirebaseFirestore.instance
+            .collection('user_details')
+            .doc(currentUser.uid)
+            .update({
+          'fullName': newName,
+          'email': newEmail,
+          'mobile': newMobile,
+          'address': newAddress,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
+
+        // Update local state
+        setState(() {
+          _name = newName;
+          _email = newEmail;
+          _mobile = newMobile;
+          _address = newAddress;
+        });
+
+        // Update cached data
+        await _saveCachedData();
+
+        // Close loading indicator
+        Navigator.pop(context);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              changedFields.isEmpty
+                  ? 'No changes made'
+                  : 'Profile updated successfully!',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.green.shade800,
+          ),
+        );
       }
     } catch (e) {
+      // Close loading indicator if it's showing
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error updating profile: ${e.toString()}',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
       print('Error updating user data: $e');
     }
   }
@@ -667,14 +721,127 @@ class _ProfilePageState extends State<profile>
     }
   }
 
+  void _showAddressScreen(TextEditingController addressController) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: AddressScreen(
+            onAddressSelected: (address) async {
+              // Show loading indicator
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => Center(
+                  child: CircularProgressIndicator(
+                    valueColor:
+                    AlwaysStoppedAnimation<Color>(Colors.green.shade800),
+                  ),
+                ),
+              );
+
+              try {
+                final User? currentUser = FirebaseAuth.instance.currentUser;
+                if (currentUser != null) {
+                  // Store the previous address for history
+                  await FirebaseFirestore.instance
+                      .collection('users_edited_details')
+                      .add({
+                    'userId': currentUser.uid,
+                    'previous': {
+                      'address': _address,
+                      'fullName': _name,
+                      'email': _email,
+                      'mobile': _mobile,
+                    },
+                    'updated': {
+                      'address': address,
+                      'fullName': _name,
+                      'email': _email,
+                      'mobile': _mobile,
+                    },
+                    'editedAt': FieldValue.serverTimestamp(),
+                    'fieldEdited': 'address',
+                  });
+
+                  // Update the main user document
+                  await FirebaseFirestore.instance
+                      .collection('user_details')
+                      .doc(currentUser.uid)
+                      .update({
+                    'address': address,
+                    'lastUpdated': FieldValue.serverTimestamp(),
+                  });
+
+                  // Update local state
+                  setState(() {
+                    _address = address;
+                    addressController.text = address;
+                  });
+
+                  // Update cached data
+                  await _saveCachedData();
+
+                  // Close loading indicator
+                  Navigator.pop(context);
+                  // Close address screen
+                  Navigator.pop(context);
+
+                  // Show success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Address updated successfully!',
+                        style: GoogleFonts.poppins(),
+                      ),
+                      backgroundColor: Colors.green.shade800,
+                    ),
+                  );
+
+                  // Reopen edit profile dialog
+                  Future.delayed(Duration(milliseconds: 100), () {
+                    _editProfileName(context);
+                  });
+                }
+              } catch (error) {
+                // Close loading indicator
+                Navigator.pop(context);
+                // Close address screen
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Error updating address: $error',
+                      style: GoogleFonts.poppins(),
+                    ),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                print('Error updating address: $error');
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
   void _editProfileName(BuildContext context) {
-    final TextEditingController nameController = TextEditingController(text: _name);
-    final TextEditingController emailController = TextEditingController(text: _email);
-    final TextEditingController mobileController = TextEditingController(text: _mobile);
-    final TextEditingController addressController = TextEditingController(text: _address);
+    final TextEditingController nameController =
+    TextEditingController(text: _name);
+    final TextEditingController emailController =
+    TextEditingController(text: _email);
+    final TextEditingController mobileController =
+    TextEditingController(text: _mobile);
+    final TextEditingController addressController =
+    TextEditingController(text: _address);
 
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
@@ -700,7 +867,8 @@ class _ProfilePageState extends State<profile>
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.green.shade600, width: 2),
+                    borderSide:
+                    BorderSide(color: Colors.green.shade600, width: 2),
                   ),
                 ),
               ),
@@ -717,7 +885,8 @@ class _ProfilePageState extends State<profile>
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.green.shade600, width: 2),
+                    borderSide:
+                    BorderSide(color: Colors.green.shade600, width: 2),
                   ),
                 ),
               ),
@@ -734,32 +903,38 @@ class _ProfilePageState extends State<profile>
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.green.shade600, width: 2),
+                    borderSide:
+                    BorderSide(color: Colors.green.shade600, width: 2),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              GestureDetector(
+              InkWell(
                 onTap: () {
-                  Navigator.of(context).pop();
+                  Navigator.pop(context);
                   _showAddressScreen(addressController);
                 },
-                child: AbsorbPointer(
-                  child: TextField(
-                    controller: addressController,
-                    style: GoogleFonts.poppins(),
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: 'Address',
-                      labelStyle: GoogleFonts.poppins(color: Colors.green.shade600),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.green.shade200),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.green.shade600, width: 2),
-                      ),
+                child: TextField(
+                  controller: addressController,
+                  style: GoogleFonts.poppins(),
+                  maxLines: 3,
+                  enabled: false,
+                  decoration: InputDecoration(
+                    labelText: 'Address (tap to edit)',
+                    labelStyle:
+                    GoogleFonts.poppins(color: Colors.green.shade600),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.green.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                      BorderSide(color: Colors.green.shade600, width: 2),
+                    ),
+                    disabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.green.shade200),
                     ),
                   ),
                 ),
@@ -785,6 +960,16 @@ class _ProfilePageState extends State<profile>
                   addressController.text,
                 );
                 Navigator.of(context).pop();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Name cannot be empty',
+                      style: GoogleFonts.poppins(),
+                    ),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -800,20 +985,6 @@ class _ProfilePageState extends State<profile>
           ),
         ],
       ),
-    );
-  }
-
-  void _showAddressScreen(TextEditingController addressController) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AddressScreen(
-          onAddressSelected: (address) {
-            addressController.text = address;
-            _editProfileName(context);
-          },
-        );
-      },
     );
   }
 

@@ -11,9 +11,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AddressScreen extends StatefulWidget {
-  final Function(String) onAddressSelected;
+  final Function(Map<String, String>) onAddressSelected;
 
-  const AddressScreen({Key? key, required this.onAddressSelected}) : super(key: key);
+  const AddressScreen({Key? key, required this.onAddressSelected})
+      : super(key: key);
 
   @override
   State<AddressScreen> createState() => _AddressScreenState();
@@ -21,6 +22,8 @@ class AddressScreen extends StatefulWidget {
 
 class _AddressScreenState extends State<AddressScreen> {
   final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _pincodeController = TextEditingController();
   final TextEditingController _houseController = TextEditingController();
   final TextEditingController _roadController = TextEditingController();
@@ -32,6 +35,8 @@ class _AddressScreenState extends State<AddressScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
+    _mobileController.dispose();
     _pincodeController.dispose();
     _houseController.dispose();
     _roadController.dispose();
@@ -46,9 +51,8 @@ class _AddressScreenState extends State<AddressScreen> {
     });
 
     try {
-      final response = await http.get(
-          Uri.parse("http://www.postalpincode.in/api/pincode/$pincode")
-      );
+      final response = await http
+          .get(Uri.parse("http://www.postalpincode.in/api/pincode/$pincode"));
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -113,8 +117,14 @@ class _AddressScreenState extends State<AddressScreen> {
 
   void _submitAddress() {
     if (_formKey.currentState!.validate()) {
-      String address = '${_houseController.text}, ${_roadController.text}, ${_city ?? ''}, ${_state ?? ''}, ${_pincodeController.text}';
-      widget.onAddressSelected(address);
+      String address =
+          '${_houseController.text}, ${_roadController.text}, ${_city ?? ''}, ${_state ?? ''}, ${_pincodeController.text}';
+      Map<String, String> addressData = {
+        'name': _nameController.text,
+        'mobile': _mobileController.text,
+        'address': address,
+      };
+      widget.onAddressSelected(addressData);
       Navigator.of(context).pop();
     }
   }
@@ -145,16 +155,40 @@ class _AddressScreenState extends State<AddressScreen> {
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
+                  controller: _nameController,
+                  decoration: _buildInputDecoration('Full Name'),
+                  style: GoogleFonts.poppins(),
+                  validator: (value) =>
+                  value?.isEmpty ?? true ? 'Please enter your name' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _mobileController,
+                  decoration: _buildInputDecoration('Mobile Number'),
+                  style: GoogleFonts.poppins(),
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true)
+                      return 'Please enter mobile number';
+                    if (value!.length != 10)
+                      return 'Please enter a valid 10-digit mobile number';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
                   controller: _houseController,
                   decoration: _buildInputDecoration('House no / Building Name'),
                   style: GoogleFonts.poppins(),
-                  validator: (value) =>
-                  value?.isEmpty ?? true ? 'Please enter building name' : null,
+                  validator: (value) => value?.isEmpty ?? true
+                      ? 'Please enter building name'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _roadController,
-                  decoration: _buildInputDecoration('Road Name / Area / Colony'),
+                  decoration:
+                  _buildInputDecoration('Road Name / Area / Colony'),
                   style: GoogleFonts.poppins(),
                   validator: (value) =>
                   value?.isEmpty ?? true ? 'Please enter road name' : null,
@@ -194,8 +228,10 @@ class _AddressScreenState extends State<AddressScreen> {
                             style: GoogleFonts.poppins(),
                             readOnly: true,
                             enabled: !_isLoading,
-                            validator: (value) => _city == null || _city!.isEmpty
-                                ? 'Please enter valid pincode to get city' : null,
+                            validator: (value) =>
+                            _city == null || _city!.isEmpty
+                                ? 'Please enter valid pincode to get city'
+                                : null,
                           ),
                           if (_isLoading)
                             Positioned(
@@ -206,7 +242,8 @@ class _AddressScreenState extends State<AddressScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(primaryGreen),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      primaryGreen),
                                 ),
                               ),
                             ),
@@ -222,7 +259,8 @@ class _AddressScreenState extends State<AddressScreen> {
                         readOnly: true,
                         enabled: !_isLoading,
                         validator: (value) => _state == null || _state!.isEmpty
-                            ? 'Please enter valid pincode to get state' : null,
+                            ? 'Please enter valid pincode to get state'
+                            : null,
                       ),
                     ),
                   ],
@@ -252,7 +290,8 @@ class _AddressScreenState extends State<AddressScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
                       ),
                       child: Text(
                         'Save Address',
@@ -437,7 +476,8 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
   Future<void> _saveSubscriptionDetails() async {
     try {
       DateTime endDate;
-      double totalPrice = isMonthlySelected ? monthlyPrice * monthsCount : weeklyPrice;
+      double totalPrice =
+      isMonthlySelected ? monthlyPrice * monthsCount : weeklyPrice;
 
       if (isMonthlySelected) {
         endDate = selectedStartDate!.add(Duration(days: monthsCount * 30));
@@ -445,10 +485,20 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         endDate = selectedStartDate!.add(const Duration(days: 7));
       }
 
+      // Parse name and mobile from pickup address
+      List<String> addressParts = pickupAddress!.split('\n');
+      List<String> contactInfo = addressParts[0].split(' - ');
+      String name = contactInfo[0];
+      String mobile = contactInfo[1];
+      String address = addressParts[1];
+
       // Create lists of selected waste types
       List<String> selectedHouseholdWaste = [];
       List<String> householdWasteTypes = [
-        'Mix waste (Wet & Dry)', 'Wet Waste', 'Dry Waste', 'E-Waste'
+        'Mix waste (Wet & Dry)',
+        'Wet Waste',
+        'Dry Waste',
+        'E-Waste'
       ];
       for (int i = 0; i < householdWasteSelection.length; i++) {
         if (householdWasteSelection[i]) {
@@ -458,7 +508,10 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
 
       List<String> selectedCommercialWaste = [];
       List<String> commercialWasteTypes = [
-        'Restaurant', 'Meat & Vegetable Stall', 'Plastic Waste', 'Others'
+        'Restaurant',
+        'Meat & Vegetable Stall',
+        'Plastic Waste',
+        'Others'
       ];
       for (int i = 0; i < commercialWasteSelection.length; i++) {
         if (commercialWasteSelection[i]) {
@@ -495,7 +548,9 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
           'start_date': selectedStartDate,
           'end_date': endDate,
           'pickup_time': formattedPickupTime,
-          'pickup_address': pickupAddress,
+          'customer_name': name,
+          'customer_mobile': mobile,
+          'pickup_address': address,
           'is_current_location': isCurrentLocation,
           'household_waste_types': selectedHouseholdWaste,
           'commercial_waste_types': selectedCommercialWaste,
@@ -510,11 +565,12 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         transaction.set(pickupRef, {
           'subscription_id': subscriptionRef.id,
           'userId': user.uid,
-          'customer_id': null,
+          'customer_name': name,
+          'customer_mobile': mobile,
           'pickup_date': Timestamp.fromDate(selectedStartDate!),
           'scheduled_time': formattedPickupTime,
           'subscription_type': isMonthlySelected ? 'Monthly' : 'Weekly',
-          'pickup_address': pickupAddress,
+          'pickup_address': address,
           'household_waste_types': selectedHouseholdWaste,
           'commercial_waste_types': selectedCommercialWaste,
           'status': 'active',
@@ -584,7 +640,8 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                       subtitle: Text('Please add a new address'),
                     ),
                     ListTile(
-                      leading: Icon(Icons.add_location_alt, color: primaryGreen),
+                      leading:
+                      Icon(Icons.add_location_alt, color: primaryGreen),
                       title: Text('Add New Address'),
                       onTap: () {
                         Navigator.pop(context);
@@ -605,20 +662,36 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            ...snapshot.data!.map((address) => ListTile(
-                              leading: Icon(Icons.home, color: primaryGreen),
-                              title: Text(address['address'] ?? 'Address'),
+                            ...snapshot.data!
+                                .map((addressData) => ListTile(
+                              leading:
+                              Icon(Icons.home, color: primaryGreen),
+                              title:
+                              Text(addressData['name'] ?? 'Name'),
+                              subtitle: Column(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Text(addressData['mobile'] ??
+                                      'Mobile'),
+                                  Text(addressData['address'] ??
+                                      'Address'),
+                                ],
+                              ),
                               onTap: () {
                                 setState(() {
                                   isCurrentLocation = false;
-                                  pickupAddress = address['address'];
+                                  pickupAddress =
+                                  '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
                                 });
                                 Navigator.pop(context);
                               },
-                            )).toList(),
+                            ))
+                                .toList(),
                             const Divider(),
                             ListTile(
-                              leading: Icon(Icons.add_location_alt, color: primaryGreen),
+                              leading: Icon(Icons.add_location_alt,
+                                  color: primaryGreen),
                               title: Text('Add New Address'),
                               onTap: () {
                                 Navigator.pop(context);
@@ -639,91 +712,29 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchUserAddresses() async {
-    List<Map<String, dynamic>> addresses = [];
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-
-    if (currentUser != null) {
-      try {
-        // Get address from user_details collection
-        final userData = await FirebaseFirestore.instance
-            .collection('user_details')
-            .doc(currentUser.uid)
-            .get();
-
-        if (userData.exists && userData.data()?['address'] != null) {
-          addresses.add({
-            'address': userData.data()?['address'],
-            'source': 'user_details'
-          });
-        }
-
-        // Get addresses from user_new_adress_list collection
-        final newAddresses = await FirebaseFirestore.instance
-            .collection('user_new_adress_list')
-            .where('userId', isEqualTo: currentUser.uid)
-            .get();
-
-        if (newAddresses.docs.isNotEmpty) {
-          for (var doc in newAddresses.docs) {
-            addresses.add({
-              'address': doc.data()['address'],
-              'source': 'user_new_adress_list',
-              'id': doc.id
-            });
-          }
-        }
-
-        // Get addresses from users_edited_details collection
-        final editedDetails = await FirebaseFirestore.instance
-            .collection('users_edited_details')
-            .where('userId', isEqualTo: currentUser.uid)
-            .orderBy('editedAt', descending: true)
-            .get();
-
-        if (editedDetails.docs.isNotEmpty) {
-          // Only add if it's not already in the list
-          final latestEdit = editedDetails.docs.first.data();
-          final updatedAddress = latestEdit['updated']['address'];
-
-          bool addressExists = addresses.any((addr) => addr['address'] == updatedAddress);
-
-          if (!addressExists && updatedAddress != null && updatedAddress.toString().isNotEmpty) {
-            addresses.add({
-              'address': updatedAddress,
-              'source': 'users_edited_details'
-            });
-          }
-        }
-      } catch (e) {
-        print('Error fetching addresses: $e');
-      }
-    }
-
-    return addresses;
-  }
-
   void _showAddressScreen() {
     showDialog(
       context: context,
       builder: (context) {
         return AddressScreen(
-          onAddressSelected: (address) async {
-            // Save the new address to user_new_adress_list collection
+          onAddressSelected: (addressData) async {
             final User? currentUser = FirebaseAuth.instance.currentUser;
             if (currentUser != null) {
               try {
                 await FirebaseFirestore.instance
-                    .collection('user_new_adress_list')
+                    .collection('user_adress_list')
                     .add({
                   'userId': currentUser.uid,
-                  'address': address,
+                  'fullname': addressData['name'],
+                  'mobile': addressData['mobile'],
+                  'address': addressData['address'],
                   'createdAt': FieldValue.serverTimestamp(),
                 });
 
                 setState(() {
                   isCurrentLocation = false;
-                  pickupAddress = address;
+                  pickupAddress =
+                  '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
                 });
 
                 if (mounted) {
@@ -746,6 +757,37 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         );
       },
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchUserAddresses() async {
+    List<Map<String, dynamic>> addresses = [];
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      try {
+        // Get addresses from user_adress_list collection only
+        final newAddresses = await FirebaseFirestore.instance
+            .collection('user_adress_list')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+
+        if (newAddresses.docs.isNotEmpty) {
+          for (var doc in newAddresses.docs) {
+            addresses.add({
+              'name': doc.data()['fullname'] ?? 'Full Name not provided',
+              'mobile': doc.data()['mobile'] ?? 'Mobile not provided',
+              'address': doc.data()['address'],
+              'source': 'user_adress_list',
+              'id': doc.id
+            });
+          }
+        }
+      } catch (e) {
+        print('Error fetching addresses: $e');
+      }
+    }
+
+    return addresses;
   }
 
   @override

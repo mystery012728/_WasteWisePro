@@ -29,7 +29,8 @@ class _OrderedProductsState extends State<OrderedProducts> {
     super.initState();
     _loadOrders();
     // Check for order updates every minute
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) => _checkOrderUpdates());
+    _timer =
+        Timer.periodic(const Duration(minutes: 1), (_) => _checkOrderUpdates());
   }
 
   @override
@@ -80,12 +81,12 @@ class _OrderedProductsState extends State<OrderedProducts> {
               now.month == oneDayBefore.month &&
               now.day == oneDayBefore.day &&
               order['predictedDeliveryTime'] == null) {
-
             // Generate random delivery time between 10 AM and 7 PM
             final random = Random();
             final hour = 10 + random.nextInt(10); // 10 AM to 7 PM (10+9)
             final minute = random.nextInt(60);
-            final predictedTime = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+            final predictedTime =
+                '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
 
             // Update the order with predicted delivery time
             await _firestore.collection('orders').doc(doc.id).update({
@@ -278,7 +279,8 @@ class _OrderedProductsState extends State<OrderedProducts> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: _selectedView == 0 ? Colors.white : Colors.transparent,
+                    color:
+                    _selectedView == 0 ? Colors.white : Colors.transparent,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: Center(
@@ -305,7 +307,8 @@ class _OrderedProductsState extends State<OrderedProducts> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: _selectedView == 1 ? Colors.white : Colors.transparent,
+                    color:
+                    _selectedView == 1 ? Colors.white : Colors.transparent,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: Center(
@@ -332,7 +335,8 @@ class _OrderedProductsState extends State<OrderedProducts> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: _selectedView == 2 ? Colors.white : Colors.transparent,
+                    color:
+                    _selectedView == 2 ? Colors.white : Colors.transparent,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: Center(
@@ -441,6 +445,8 @@ class OrderCard extends StatelessWidget {
     final bool isOneDayBeforeDelivery = hasDeliveryDate &&
         isProcessing &&
         _isOneDayBeforeDelivery(order['deliveryDate']);
+    final bool isReplacement = order['isReplacement'] == true;
+    final bool isDelivered = order['status'] == 'Delivered';
 
     return Card(
       elevation: 2,
@@ -475,6 +481,33 @@ class OrderCard extends StatelessWidget {
                   _buildStatusChip(order['status']),
                 ],
               ),
+              if (isReplacement) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh, color: Colors.orange, size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Replacement Order - Delivery by ${order['deliveryDate']}',
+                          style: GoogleFonts.poppins(
+                            color: Colors.orange,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -566,6 +599,36 @@ class OrderCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ],
+              if (isDelivered) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => OrderedProductDetails(
+                          orderDetails: order,
+                          onOrderCancelled: onStatusChanged,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.star, color: Colors.purple),
+                  label: Text(
+                    'Rate & Review',
+                    style: GoogleFonts.poppins(
+                      color: Colors.purple,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.purple),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ],

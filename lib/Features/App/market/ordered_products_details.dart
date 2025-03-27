@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutternew/Features/App/profile/invoice_generator.dart';
+import 'package:flutternew/Features/App/profile/replace_product_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'dart:math';
+import 'package:open_file/open_file.dart';
+import 'product_rating_page.dart';
 
 class OrderedProductDetails extends StatefulWidget {
   final Map<String, dynamic> orderDetails;
@@ -120,7 +123,37 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
 
   Future<void> _shareInvoice() async {
     try {
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Generating invoice...',
+                  style: GoogleFonts.poppins(),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 1),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+
+      // Generate the invoice
       final file = await InvoiceGenerator.generateInvoice(_orderDetails);
+
+      // Share the invoice
       await Share.shareFiles(
         [file.path],
         text: 'Order Invoice #${_orderDetails['orderId']}',
@@ -141,21 +174,91 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
 
   Future<void> _downloadInvoice() async {
     try {
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Generating invoice...',
+                  style: GoogleFonts.poppins(),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+
       final file = await InvoiceGenerator.generateInvoice(_orderDetails);
       if (!mounted) return;
 
+      // Determine where the file was saved
+      String locationDescription = '';
+      if (file.path.contains('/storage/emulated/0/Download')) {
+        locationDescription = 'Downloads folder';
+      } else if (file.path.contains('Documents')) {
+        locationDescription = 'Documents folder';
+      } else {
+        locationDescription = 'App storage';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Invoice downloaded successfully: ${file.path}',
-            style: GoogleFonts.poppins(),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Invoice downloaded successfully!',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Saved to: $locationDescription',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                file.path,
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  color: Colors.white70,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
             label: 'OPEN',
             onPressed: () async {
-              await Share.shareFiles([file.path]);
+              try {
+                // Try to open the file using the open_file plugin
+                final result = await OpenFile.open(file.path);
+                if (result.type != ResultType.done) {
+                  // If can't open directly, share it instead
+                  await Share.shareFiles([file.path]);
+                }
+              } catch (e) {
+                // Fallback to sharing if opening fails
+                await Share.shareFiles([file.path]);
+              }
             },
           ),
         ),
@@ -174,14 +277,156 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
     }
   }
 
+  void _showRatingDialog() {
+    final items = _orderDetails['items'] as List<dynamic>;
+
+    // Add debugging to log item structure
+    print('Items to rate: ${items.length}');
+    for (var item in items) {
+      print(
+          'Item: ${item['title']}, Product ID: ${item['productId'] ?? 'MISSING'}');
+    }
+
+    // Ensure all items have a productId
+    for (var item in items) {
+      if (!item.containsKey('productId') && item.containsKey('id')) {
+        item['productId'] = item['id'];
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Rate & Review',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Choose a product to rate:'),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 300,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    // Skip items without productId
+                    if (!item.containsKey('productId')) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return ListTile(
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Image.network(
+                          item['image'],
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      title: Text(
+                        item['title'],
+                        style: GoogleFonts.poppins(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        'Product ID: ${item['productId']}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _navigateToRatingPage(item);
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToRatingPage(Map<String, dynamic> product) {
+    // Determine the collection name based on product type or category
+    String collectionName = 'products'; // Default to products (fertilizers)
+
+    // Make sure we have a valid productId
+    if (!product.containsKey('productId')) {
+      // Show error if no productId
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cannot rate this product: missing product ID',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Check product type/category if available
+    if (product.containsKey('category')) {
+      if (product['category'] == 'recycled_craft') {
+        collectionName = 'recycled_products';
+      } else if (product['category'] == 'recycled_electronics') {
+        collectionName = 'recycled_electronics';
+      }
+    }
+
+    // Log for debugging
+    print(
+        'Navigating to rating page with productId: ${product['productId']} and collection: $collectionName');
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductRatingPage(
+          product: product,
+          collectionName: collectionName,
+          orderId: _orderDetails['orderId'],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isProcessing = _orderDetails['status'] == 'Processing';
     final bool hasDeliveryDate = _orderDetails['deliveryDate'] != null;
     final bool hasDeliveryTime = _orderDetails['predictedDeliveryTime'] != null;
-    final bool isOneDayBeforeDelivery = hasDeliveryDate &&
-        isProcessing &&
-        _isOneDayBeforeDelivery();
+    final bool isOneDayBeforeDelivery =
+        hasDeliveryDate && isProcessing && _isOneDayBeforeDelivery();
 
     return Scaffold(
       appBar: AppBar(
@@ -218,7 +463,7 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
             const SizedBox(height: 20),
             _buildPriceDetails(),
             const SizedBox(height: 20),
-            if (_orderDetails['status'] != 'Processing') _buildDownloadInvoiceButton(),
+            _buildDownloadInvoiceButton(),
           ],
         ),
       ),
@@ -321,7 +566,8 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
                 _buildStatusChip(_orderDetails['status']),
               ],
             ),
-            if (_orderDetails['status'] == 'Processing' && _orderDetails['deliveryDate'] != null) ...[
+            if (_orderDetails['status'] == 'Processing' &&
+                _orderDetails['deliveryDate'] != null) ...[
               const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -468,6 +714,15 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
               itemCount: items.length,
               itemBuilder: (context, index) {
                 final item = items[index];
+
+                // Ensure item has a productId
+                if (!item.containsKey('productId')) {
+                  // If no productId, try to use the id field if available
+                  if (item.containsKey('id')) {
+                    item['productId'] = item['id'];
+                  }
+                }
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Row(
@@ -507,6 +762,16 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
+                            if (item.containsKey('productId')) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Product ID: ${item['productId']}',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.grey[500],
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -525,7 +790,8 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
     final subtotal = _orderDetails['totalAmount'] as num;
     final cgst = subtotal * 0.09;
     final sgst = subtotal * 0.09;
-    final total = subtotal + cgst + sgst;
+    final deliveryCharges = subtotal < 299 ? 99 : 0;
+    final total = subtotal + cgst + sgst + deliveryCharges;
 
     return Card(
       elevation: 2,
@@ -546,6 +812,35 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
             _buildPriceRow('Subtotal', subtotal),
             _buildPriceRow('CGST (9%)', cgst),
             _buildPriceRow('SGST (9%)', sgst),
+            _buildPriceRow('Delivery Charges', deliveryCharges),
+            if (subtotal < 299)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'FREE delivery Over ₹299',
+                  style: GoogleFonts.poppins(
+                    color: Colors.green,
+                    fontSize: 12,
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 16),
+                    SizedBox(width: 4),
+                    Text(
+                      'Free Delivery. (Order value over ₹299)',
+                      style: GoogleFonts.poppins(
+                        color: Colors.green,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const Divider(height: 24),
             _buildPriceRow('Total Amount', total, isTotal: true),
             const SizedBox(height: 8),
@@ -589,6 +884,11 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
   }
 
   Widget _buildDownloadInvoiceButton() {
+    // Don't show download button for processing orders
+    if (_orderDetails['status'] == 'Processing') {
+      return const SizedBox.shrink();
+    }
+
     Color buttonColor;
     IconData buttonIcon;
     String buttonText;
@@ -610,24 +910,78 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
         buttonText = 'Download Invoice';
     }
 
-    return ElevatedButton.icon(
-      onPressed: _downloadInvoice,
-      icon: Icon(buttonIcon, color: Colors.white),
-      label: Text(
-        buttonText,
-        style: GoogleFonts.poppins(
-          color: Colors.white,
-          fontWeight: FontWeight.w500,
+    return Column(
+      children: [
+        ElevatedButton.icon(
+          onPressed: _downloadInvoice,
+          icon: Icon(buttonIcon, color: Colors.white),
+          label: Text(
+            buttonText,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: buttonColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            minimumSize: const Size(double.infinity, 50),
+          ),
         ),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: buttonColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        minimumSize: const Size(double.infinity, 50),
-      ),
+        if (_orderDetails['status'] == 'Delivered') ...[
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ReplaceProductPage(orderDetails: _orderDetails),
+                ),
+              );
+            },
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            label: Text(
+              'Return/Replace Product',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              minimumSize: const Size(double.infinity, 50),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _showRatingDialog,
+            icon: const Icon(Icons.star, color: Colors.white),
+            label: Text(
+              'Rate & Review Product',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              minimumSize: const Size(double.infinity, 50),
+            ),
+          ),
+        ],
+      ],
     );
   }
 

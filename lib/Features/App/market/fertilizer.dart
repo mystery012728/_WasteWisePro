@@ -325,6 +325,7 @@ class _FertilizerState extends State<fertilizer> with TickerProviderStateMixin {
       'image': image,
       'oldPrice': oldPrice,
       'quantity': 1,
+      'category': 'fertilizer',
     });
     if (mounted) {
       CustomSnackbar.showSuccess(

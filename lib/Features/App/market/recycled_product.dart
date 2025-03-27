@@ -307,6 +307,7 @@ class _RecycledProductsPageState extends State<RecycledProductsPage>
       'image': image,
       'oldPrice': oldPrice,
       'quantity': 1,
+      'category': 'recycled_craft',
     });
     if (mounted) {
       CustomSnackbar.showSuccess(

@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutternew/Features/App/User_auth/presentation/Pages/forgot_password.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -153,12 +154,30 @@ class _LoginPageState extends State<LoginPage>
                   },
                 ),
               ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordPage(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Forgot Password?',
+                    style: GoogleFonts.poppins(
+                      color: Colors.green.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
               SizedBox(height: 24),
               if (_errorMessage.isNotEmpty) _buildErrorMessage(),
               SizedBox(height: 16),
               _buildLoginButton(),
-              SizedBox(height: 16),
-              _buildPhoneAuthButton(),
               SizedBox(height: 16),
               _buildDivider(),
               SizedBox(height: 16),
@@ -259,38 +278,6 @@ class _LoginPageState extends State<LoginPage>
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
-      ),
-    );
-  }
-
-  Widget _buildPhoneAuthButton() {
-    return OutlinedButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => PhoneAuth()),
-        );
-      },
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        side: BorderSide(color: Colors.green.shade600),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.phone, color: Colors.green.shade600),
-          SizedBox(width: 8),
-          Text(
-            'Login with Phone',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              color: Colors.green.shade600,
-            ),
-          ),
-        ],
       ),
     );
   }

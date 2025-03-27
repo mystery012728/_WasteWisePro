@@ -1,6 +1,28 @@
-# flutternew
+# WasteWisePro
 
-A new Flutter project.
+A Flutter e-commerce application focused on waste management and recycling products.
+
+## Features
+
+### Order Management
+- Track orders with real-time status updates
+- View order details with comprehensive information
+- Cancel orders in processing state
+- Rate and review purchased products
+
+### Invoice Generation
+- Enhanced PDF invoice generation with detailed product information
+- Includes all order details properly formatted
+- Features delivery information and charges
+- QR code for order tracking
+- Proper tax breakdown (CGST/SGST)
+- Download invoices to device for record-keeping
+- Share invoices easily with others
+
+### Product Management
+- View comprehensive product details
+- Replace or return products after delivery
+- Rate products with detailed feedback
 
 ## Getting Started
 

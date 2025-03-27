@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutternew/Features/App/market/OGprovidere.dart';
 import 'package:flutternew/Features/App/market/payment.dart';
+import 'package:flutternew/Features/App/market/product_rating_page.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,7 +14,8 @@ class RecycledElectronicDetail extends StatelessWidget {
   final Color primaryGrey = const Color(0xFF616161);
   final Color lightGrey = const Color(0xFF9E9E9E);
 
-  const RecycledElectronicDetail({Key? key, required this.productId}) : super(key: key);
+  const RecycledElectronicDetail({Key? key, required this.productId})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -61,10 +63,39 @@ class RecycledElectronicDetail extends StatelessWidget {
           }
 
           var product = snapshot.data!.data() as Map<String, dynamic>;
+
+          // Ensure productId is in the product data
+          if (!product.containsKey('productId')) {
+            // Add productId to Firestore document if it doesn't exist
+            FirebaseFirestore.instance
+                .collection('recycled_electronics')
+                .doc(productId)
+                .update({'productId': productId})
+                .then((_) =>
+                print('Added productId to recycled electronics document'))
+                .catchError(
+                    (error) => print('Failed to add productId: $error'));
+
+            // Also add it to our local copy
+            product['productId'] = productId;
+          }
+
           String imageUrl = product['image'] ?? '';
           double price = product['price'].toDouble();
           double oldPrice = product['oldPrice']?.toDouble() ?? price;
-          double discountPercentage = oldPrice > price ? ((oldPrice - price) / oldPrice) * 100 : 0;
+          double discountPercentage =
+          oldPrice > price ? ((oldPrice - price) / oldPrice) * 100 : 0;
+
+          // Get rating data
+          double rating = product['rating']?.toDouble() ?? 0.0;
+          int reviewCount = product['reviewCount'] as int? ?? 0;
+          Map<String, dynamic> ratingStats =
+              product['ratingStats'] as Map<String, dynamic>? ??
+                  {
+                    'average': 0.0,
+                    'total': 0,
+                    'count': {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0}
+                  };
 
           return Column(
             children: [
@@ -98,11 +129,13 @@ class RecycledElectronicDetail extends StatelessWidget {
                                   fit: BoxFit.cover,
                                   placeholder: (context, url) => Center(
                                     child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(primaryGrey),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          primaryGrey),
                                     ),
                                   ),
                                   errorWidget: (context, url, error) =>
-                                  const Icon(Icons.broken_image, size: 100, color: Colors.red),
+                                  const Icon(Icons.broken_image,
+                                      size: 100, color: Colors.red),
                                 ),
                               ),
                             ),
@@ -112,7 +145,8 @@ class RecycledElectronicDetail extends StatelessWidget {
                               top: 16,
                               right: 16,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [primaryGrey, lightGrey],
@@ -165,18 +199,185 @@ class RecycledElectronicDetail extends StatelessWidget {
                         ],
                       ).animate().fadeIn(delay: 400.ms).slideX(),
                       const SizedBox(height: 16),
-                      Row(
-                        children: List.generate(
-                          5,
-                              (index) => Icon(
-                            (product['rating'] != null && index < (product['rating'] as num).toInt())
-                                ? Icons.star
-                                : Icons.star_border,
-                            size: 24,
-                            color: Colors.amber,
-                          ).animate(delay: (100 * index).ms).fadeIn().scale(),
+
+                      // Rating section
+                      GestureDetector(
+                        onTap: () {
+                          if (reviewCount > 0) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProductReviewsPage(
+                                  productId: productId,
+                                  collectionName: 'recycled_electronics',
+                                  primaryColor: primaryGrey,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: Row(
+                          children: [
+                            Row(
+                              children: List.generate(
+                                5,
+                                    (index) => Icon(
+                                  (index < rating.round())
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 24,
+                                  color: Colors.amber,
+                                )
+                                    .animate(delay: (100 * index).ms)
+                                    .fadeIn()
+                                    .scale(),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '(${rating.toStringAsFixed(1)})',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.chevron_right,
+                              color: Colors.grey[600],
+                              size: 20,
+                            ),
+                          ],
                         ),
                       ),
+
+                      if (reviewCount > 0) ...[
+                        const SizedBox(height: 16),
+                        // Rating breakdown
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Rating Breakdown',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryGrey,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              // Show rating bars
+                              ...List.generate(
+                                5,
+                                    (index) {
+                                  // Get count from highest to lowest (5 to 1)
+                                  final starNumber = 5 - index;
+                                  final count = ratingStats['count']
+                                  [starNumber.toString()] as int? ??
+                                      0;
+                                  final percentage = reviewCount > 0
+                                      ? (count / reviewCount * 100)
+                                      : 0.0;
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          '$starNumber',
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.star,
+                                          size: 16,
+                                          color: Colors.amber,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Stack(
+                                            children: [
+                                              Container(
+                                                height: 8,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey[300],
+                                                  borderRadius:
+                                                  BorderRadius.circular(4),
+                                                ),
+                                              ),
+                                              FractionallySizedBox(
+                                                widthFactor: percentage / 100,
+                                                child: Container(
+                                                  height: 8,
+                                                  decoration: BoxDecoration(
+                                                    color: primaryGrey,
+                                                    borderRadius:
+                                                    BorderRadius.circular(
+                                                        4),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        SizedBox(
+                                          width: 40,
+                                          child: Text(
+                                            '${percentage.toStringAsFixed(0)}%',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                            ),
+                                            textAlign: TextAlign.right,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProductReviewsPage(
+                                        productId: productId,
+                                        collectionName: 'recycled_electronics',
+                                        primaryColor: primaryGrey,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: Icon(Icons.comment, color: primaryGrey),
+                                label: Text(
+                                  'See All Reviews ($reviewCount)',
+                                  style: GoogleFonts.poppins(
+                                    color: primaryGrey,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: primaryGrey),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -221,13 +422,16 @@ class RecycledElectronicDetail extends StatelessWidget {
                       child: _buildButton(
                         context: context,
                         onPressed: () {
-                          Provider.of<CartProvider>(context, listen: false).addToCart({
+                          Provider.of<CartProvider>(context, listen: false)
+                              .addToCart({
                             'productId': productId,
                             'title': product['name'],
                             'price': price,
                             'image': product['image'],
                             'oldPrice': oldPrice,
                             'quantity': 1,
+                            'category':
+                            'recycled_electronics', // Add category for later identification
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -256,6 +460,9 @@ class RecycledElectronicDetail extends StatelessWidget {
                                   'title': product['name'],
                                   'price': price,
                                   'image': product['image'],
+                                  'productId': productId,
+                                  'category':
+                                  'recycled_electronics', // Add category for later identification
                                 },
                               ),
                             ),

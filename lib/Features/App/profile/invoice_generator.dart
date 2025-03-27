@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class InvoiceGenerator {
   static Future<File> generateInvoice(Map<String, dynamic> orderDetails) async {
@@ -26,20 +28,60 @@ class InvoiceGenerator {
             pw.SizedBox(height: 20),
             _buildTotalAmount(orderDetails),
             pw.SizedBox(height: 40),
-            _buildFooter(status),
-            if (status == 'Cancelled')
-              _buildCancellationWatermark(),
+            _buildFooter(orderDetails),
+            if (status == 'Cancelled') _buildCancellationWatermark(),
           ];
         },
       ),
     );
 
-    // Save the PDF file
-    final output = await getTemporaryDirectory();
-    final fileName = 'invoice_${orderDetails['orderId']}_${status.toLowerCase()}.pdf';
-    final file = File('${output.path}/$fileName');
-    await file.writeAsBytes(await pdf.save());
-    return file;
+    // Generate a meaningful filename with timestamp
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final fileName =
+        'WasteWisePro_Invoice_${orderDetails['orderId']}_${status.toLowerCase()}_$timestamp.pdf';
+
+    // Try to save in Downloads folder first, fallback to temp dir if can't access
+    try {
+      // Try to get access to external storage
+      final status = await Permission.storage.request();
+
+      if (status.isGranted) {
+        // On Android, save to Downloads
+        if (Platform.isAndroid) {
+          final externalDir = await getExternalStorageDirectory();
+          if (externalDir != null) {
+            // Navigate from Android/data/... to Download
+            final downloadsDir = Directory('/storage/emulated/0/Download');
+            if (!await downloadsDir.exists()) {
+              await downloadsDir.create(recursive: true);
+            }
+
+            final file = File('${downloadsDir.path}/$fileName');
+            await file.writeAsBytes(await pdf.save());
+            return file;
+          }
+        }
+        // On iOS, save to Documents
+        else if (Platform.isIOS) {
+          final documentsDir = await getApplicationDocumentsDirectory();
+          final file = File('${documentsDir.path}/$fileName');
+          await file.writeAsBytes(await pdf.save());
+          return file;
+        }
+      }
+
+      // Fallback to temp directory if above fails
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsBytes(await pdf.save());
+      return file;
+    } catch (e) {
+      // If anything goes wrong, fallback to temp directory
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsBytes(await pdf.save());
+      return file;
+    }
   }
 
   static pw.Widget _buildHeader(Map<String, dynamic> orderDetails) {
@@ -103,19 +145,30 @@ class InvoiceGenerator {
   }
 
   static pw.Widget _buildInvoiceInfo(Map<String, dynamic> orderDetails) {
-    final orderDate = DateTime.parse(orderDetails['orderDate']);
-    final formattedDate = DateFormat('dd MMM yyyy').format(orderDate);
+    String formattedDate;
+    try {
+      // Try to parse as ISO date first
+      final orderDate = DateTime.parse(orderDetails['orderDate']);
+      formattedDate = DateFormat('dd MMM yyyy').format(orderDate);
+    } catch (e) {
+      // If it fails, assume it's already in DD/MM/YYYY format
+      formattedDate = orderDetails['orderDate'];
+    }
+
     final status = orderDetails['status'] as String? ?? 'Processing';
     final statusColor = _getStatusColor(status);
 
     String statusDetails = status;
     if (status == 'Cancelled' && orderDetails.containsKey('cancelledAt')) {
       final cancelledDate = DateTime.parse(orderDetails['cancelledAt']);
-      final formattedCancelDate = DateFormat('dd MMM yyyy HH:mm').format(cancelledDate);
+      final formattedCancelDate =
+      DateFormat('dd MMM yyyy HH:mm').format(cancelledDate);
       statusDetails = '$status on $formattedCancelDate';
-    } else if (status == 'Delivered' && orderDetails.containsKey('deliveredAt')) {
+    } else if (status == 'Delivered' &&
+        orderDetails.containsKey('deliveredAt')) {
       final deliveredDate = DateTime.parse(orderDetails['deliveredAt']);
-      final formattedDeliveryDate = DateFormat('dd MMM yyyy').format(deliveredDate);
+      final formattedDeliveryDate =
+      DateFormat('dd MMM yyyy').format(deliveredDate);
       statusDetails = '$status on $formattedDeliveryDate';
     }
 
@@ -137,6 +190,12 @@ class InvoiceGenerator {
                 fontWeight: pw.FontWeight.bold,
               ),
             ),
+            if (orderDetails.containsKey('deliveryDate') &&
+                status == 'Processing')
+              pw.Text(
+                'Expected Delivery: ${orderDetails['deliveryDate']}',
+                style: const pw.TextStyle(fontSize: 14),
+              ),
           ],
         ),
         pw.Column(
@@ -190,42 +249,80 @@ class InvoiceGenerator {
   static pw.Widget _buildItemsTable(Map<String, dynamic> orderDetails) {
     final items = orderDetails['items'] as List<dynamic>;
 
-    return pw.Table(
-      border: pw.TableBorder.all(),
-      columnWidths: {
-        0: const pw.FlexColumnWidth(4),
-        1: const pw.FlexColumnWidth(1),
-        2: const pw.FlexColumnWidth(2),
-        3: const pw.FlexColumnWidth(2),
-      },
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // Table Header
-        pw.TableRow(
-          decoration: pw.BoxDecoration(
-            color: PdfColors.grey300,
+        pw.Text(
+          'Ordered Items',
+          style: pw.TextStyle(
+            fontSize: 16,
+            fontWeight: pw.FontWeight.bold,
           ),
+        ),
+        pw.SizedBox(height: 8),
+        pw.Table(
+          border: pw.TableBorder.all(),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(5),
+            1: const pw.FlexColumnWidth(1),
+            2: const pw.FlexColumnWidth(2),
+            3: const pw.FlexColumnWidth(2),
+          },
           children: [
-            _buildTableCell('Item Description', isHeader: true),
-            _buildTableCell('Qty', isHeader: true),
-            _buildTableCell('Unit Price', isHeader: true),
-            _buildTableCell('Amount', isHeader: true),
+            // Table Header
+            pw.TableRow(
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey300,
+              ),
+              children: [
+                _buildTableCell('Item Description', isHeader: true),
+                _buildTableCell('Qty', isHeader: true),
+                _buildTableCell('Unit Price', isHeader: true),
+                _buildTableCell('Amount', isHeader: true),
+              ],
+            ),
+            // Table Items
+            ...items.map((item) {
+              final quantity = item['quantity'] as int? ?? 1;
+              final price = item['price'] as num? ?? 0.0;
+              final total = quantity * price;
+
+              // Build item description with product ID and any additional details
+              String description = item['title'] ?? 'N/A';
+              if (item.containsKey('productId')) {
+                description += '\nProduct ID: ${item['productId']}';
+              } else if (item.containsKey('id')) {
+                description += '\nProduct ID: ${item['id']}';
+              }
+
+              // Add category if available
+              if (item.containsKey('category')) {
+                description += '\nCategory: ${item['category']}';
+              }
+
+              // Add any other important product details
+              if (item.containsKey('brand')) {
+                description += '\nBrand: ${item['brand']}';
+              }
+
+              if (item.containsKey('weight') || item.containsKey('size')) {
+                final weightOrSize = item.containsKey('weight')
+                    ? '${item['weight']}'
+                    : '${item['size']}';
+                description += '\nWeight/Size: $weightOrSize';
+              }
+
+              return pw.TableRow(
+                children: [
+                  _buildTableCell(description),
+                  _buildTableCell(quantity.toString()),
+                  _buildTableCell('Rs. ${price.toStringAsFixed(2)}'),
+                  _buildTableCell('Rs. ${total.toStringAsFixed(2)}'),
+                ],
+              );
+            }).toList(),
           ],
         ),
-        // Table Items
-        ...items.map((item) {
-          final quantity = item['quantity'] as int? ?? 1;
-          final price = item['price'] as num? ?? 0.0;
-          final total = quantity * price;
-
-          return pw.TableRow(
-            children: [
-              _buildTableCell(item['title'] ?? 'N/A'),
-              _buildTableCell(quantity.toString()),
-              _buildTableCell('Rs. ${price.toStringAsFixed(2)}'),
-              _buildTableCell('Rs. ${total.toStringAsFixed(2)}'),
-            ],
-          );
-        }).toList(),
       ],
     );
   }
@@ -247,13 +344,34 @@ class InvoiceGenerator {
     final subtotal = orderDetails['totalAmount'] as num? ?? 0.0;
     final cgst = subtotal * 0.09;
     final sgst = subtotal * 0.09;
-    final total = subtotal + cgst + sgst;
+
+    // Calculate delivery charges based on subtotal
+    final deliveryCharges = subtotal < 299 ? 99.0 : 0.0;
+
+    // Include delivery charges in total
+    final total = subtotal + cgst + sgst + deliveryCharges;
 
     return pw.Column(
       children: [
         _buildAmountRow('Subtotal:', subtotal),
         _buildAmountRow('CGST (9%):', cgst),
         _buildAmountRow('SGST (9%):', sgst),
+        _buildAmountRow('Delivery Charges:', deliveryCharges),
+        if (subtotal >= 299)
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 2, bottom: 4, left: 8),
+            child: pw.Row(
+              children: [
+                pw.Text(
+                  'Free Delivery (Order value over ₹299)',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
         pw.Divider(),
         _buildAmountRow('Total Amount:', total, isTotal: true),
       ],
@@ -286,33 +404,78 @@ class InvoiceGenerator {
     );
   }
 
-  static pw.Widget _buildFooter(String status) {
+  static pw.Widget _buildFooter(Map<String, dynamic> orderDetails) {
+    final status = orderDetails['status'] as String? ?? 'Processing';
+    final orderId = orderDetails['orderId'] ?? '';
+
     String footerText = 'Thank you for shopping with WasteWisePro!';
 
     if (status == 'Cancelled') {
       footerText = 'This order has been cancelled.';
     } else if (status == 'Delivered') {
-      footerText = 'Thank you for shopping with WasteWisePro! Your order has been delivered.';
+      footerText =
+      'Thank you for shopping with WasteWisePro! Your order has been delivered.';
     }
 
     return pw.Column(
       children: [
         pw.Divider(),
         pw.SizedBox(height: 10),
-        pw.Text(
-          footerText,
-          style: pw.TextStyle(
-            fontSize: 14,
-            fontWeight: pw.FontWeight.bold,
-            color: _getStatusColor(status),
-          ),
-        ),
-        pw.SizedBox(height: 10),
-        pw.Text(
-          'This is a computer-generated invoice and does not require a signature.',
-          style: const pw.TextStyle(
-            fontSize: 10,
-          ),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    footerText,
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                      color: _getStatusColor(status),
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Text(
+                    'This is a computer-generated invoice and does not require a signature.',
+                    style: const pw.TextStyle(
+                      fontSize: 10,
+                    ),
+                  ),
+                  pw.SizedBox(height: 5),
+                  pw.Text(
+                    'For any query related to this order:',
+                    style: const pw.TextStyle(
+                      fontSize: 10,
+                    ),
+                  ),
+                  pw.Text(
+                    'Email: support@wastewisepro.com | Phone: +91-9876543210',
+                    style: const pw.TextStyle(
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 20),
+            pw.Column(
+              children: [
+                pw.BarcodeWidget(
+                  data: 'WasteWisePro-Order-$orderId',
+                  width: 80,
+                  height: 80,
+                  barcode: pw.Barcode.qrCode(),
+                ),
+                pw.SizedBox(height: 5),
+                pw.Text(
+                  'Scan to Track',
+                  style: pw.TextStyle(fontSize: 8),
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     );

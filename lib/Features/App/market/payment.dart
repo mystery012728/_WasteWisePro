@@ -100,194 +100,373 @@ class _AddressScreenState extends State<AddressScreen> {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Add Delivery Address',
-                        style: GoogleFonts.poppins(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: primaryGreen,
-                        ),
-                      ).animate().fadeIn().slideX(),
-                      const SizedBox(height: 24),
-                      _buildFormFields(),
-                      const SizedBox(height: 24),
-                      PriceDetailsCard(productInfo: widget.productInfo),
-                    ].animate(interval: 100.ms).fadeIn().slideX(),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Add Delivery Address',
+                      style: GoogleFonts.poppins(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: primaryGreen,
+                      ),
+                    ).animate().fadeIn().slideX(),
+                    const SizedBox(height: 24),
+                    _buildSavedAddresses(),
+                    const SizedBox(height: 24),
+                    _buildAddNewAddressButton(),
+                    const SizedBox(height: 24),
+                    PriceDetailsCard(productInfo: widget.productInfo),
+                  ].animate(interval: 100.ms).fadeIn().slideX(),
                 ),
               ),
             ),
-            _buildBottomButton(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFormFields() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+  Widget _buildSavedAddresses() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fetchUserAddresses(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Text('Error loading addresses: ${snapshot.error}');
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                'No saved addresses found. Please add a new address.',
+                style: GoogleFonts.poppins(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          children: snapshot.data!.map((addressData) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                leading: Icon(Icons.home, color: primaryGreen),
+                title: Text(
+                  addressData['name'] ?? 'Name',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      addressData['mobile'] ?? 'Mobile',
+                      style: GoogleFonts.poppins(),
+                    ),
+                    Text(
+                      addressData['address'] ?? 'Address',
+                      style: GoogleFonts.poppins(),
+                    ),
+                  ],
+                ),
+                onTap: () {
+                  // Parse the full address into components
+                  String fullAddress = addressData['address'] ?? '';
+                  List<String> addressParts = fullAddress.split(', ');
+
+                  // Extract components from address parts
+                  String house = addressParts.isNotEmpty ? addressParts[0] : '';
+                  String road = addressParts.length > 1 ? addressParts[1] : '';
+                  String city = addressParts.length > 2 ? addressParts[2] : '';
+                  String state = addressParts.length > 3 ? addressParts[3] : '';
+                  String pincode =
+                  addressParts.length > 4 ? addressParts[4] : '';
+
+                  Map<String, String> addressDetails = {
+                    'name': addressData['name'] ?? '',
+                    'phone': addressData['mobile'] ?? '',
+                    'address': fullAddress,
+                    'pincode': pincode,
+                    'city': city,
+                    'state': state,
+                    'house': house,
+                    'road': road,
+                  };
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SummaryScreen(
+                        productInfo: widget.productInfo,
+                        addressDetails: addressDetails,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildAddNewAddressButton() {
+    return ElevatedButton.icon(
+      onPressed: () => _showAddAddressForm(),
+      icon: const Icon(Icons.add),
+      label: Text(
+        'Add New Address',
+        style: GoogleFonts.poppins(),
       ),
-      child: Column(
-        children: [
-          TextFormField(
-            controller: _nameController,
-            decoration: _buildInputDecoration('Full Name'),
-            style: GoogleFonts.poppins(),
-            validator: (value) =>
-            value?.isEmpty ?? true ? 'Please enter your full name' : null,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _phoneController,
-            decoration: _buildInputDecoration('Phone Number'),
-            style: GoogleFonts.poppins(),
-            keyboardType: TextInputType.phone,
-            validator: (value) {
-              if (value?.isEmpty ?? true)
-                return 'Please enter your phone number';
-              if (value!.length < 10)
-                return 'Please enter a valid phone number';
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _pincodeController,
-            decoration: _buildInputDecoration('Pincode'),
-            style: GoogleFonts.poppins(),
-            keyboardType: TextInputType.number,
-            validator: (value) {
-              if (value?.isEmpty ?? true) return 'Please enter pincode';
-              if (value!.length != 6)
-                return 'Please enter a valid 6-digit pincode';
-              return null;
-            },
-            onChanged: (value) {
-              if (value.length == 6) {
-                _fetchLocationDetails(value);
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  decoration: _buildInputDecoration('City'),
-                  controller: TextEditingController(text: _city),
-                  style: GoogleFonts.poppins(),
-                  readOnly: true,
-                  validator: (value) => _city == null || _city!.isEmpty
-                      ? 'Please enter city'
-                      : null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextFormField(
-                  decoration: _buildInputDecoration('State'),
-                  controller: TextEditingController(text: _state),
-                  style: GoogleFonts.poppins(),
-                  readOnly: true,
-                  validator: (value) => _state == null || _state!.isEmpty
-                      ? 'Please enter state'
-                      : null,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _houseController,
-            decoration: _buildInputDecoration('House no / Building Name'),
-            style: GoogleFonts.poppins(),
-            validator: (value) =>
-            value?.isEmpty ?? true ? 'Please enter building name' : null,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _roadController,
-            decoration: _buildInputDecoration('Road Name / Area / Colony'),
-            style: GoogleFonts.poppins(),
-            validator: (value) =>
-            value?.isEmpty ?? true ? 'Please enter road name' : null,
-          ),
-        ],
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryGreen,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
 
-  Widget _buildBottomButton() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
+  Future<List<Map<String, dynamic>>> _fetchUserAddresses() async {
+    List<Map<String, dynamic>> addresses = [];
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      try {
+        final newAddresses = await FirebaseFirestore.instance
+            .collection('user_adress_list')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+
+        if (newAddresses.docs.isNotEmpty) {
+          for (var doc in newAddresses.docs) {
+            addresses.add({
+              'name': doc.data()['fullname'] ?? 'Full Name not provided',
+              'mobile': doc.data()['mobile'] ?? 'Mobile not provided',
+              'address': doc.data()['address'],
+              'source': 'user_adress_list',
+              'id': doc.id
+            });
+          }
+        }
+      } catch (e) {
+        print('Error fetching addresses: $e');
+      }
+    }
+
+    return addresses;
+  }
+
+  void _showAddAddressForm() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            Map<String, String> addressDetails = {
-              'name': _nameController.text,
-              'phone': _phoneController.text,
-              'pincode': _pincodeController.text,
-              'city': _city ?? '',
-              'state': _state ?? '',
-              'house': _houseController.text,
-              'road': _roadController.text,
-            };
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SummaryScreen(
-                  productInfo: widget.productInfo,
-                  addressDetails: addressDetails,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Add New Address',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: _buildInputDecoration('Full Name'),
+                      validator: (value) => value?.isEmpty ?? true
+                          ? 'Please enter your name'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: _buildInputDecoration('Phone Number'),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value?.isEmpty ?? true)
+                          return 'Please enter phone number';
+                        if (value!.length != 10)
+                          return 'Please enter a valid 10-digit phone number';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _pincodeController,
+                      decoration: _buildInputDecoration('Pincode'),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value?.isEmpty ?? true)
+                          return 'Please enter pincode';
+                        if (value!.length != 6)
+                          return 'Please enter a valid 6-digit pincode';
+                        return null;
+                      },
+                      onChanged: (value) {
+                        if (value.length == 6) {
+                          _fetchLocationDetails(value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            decoration: _buildInputDecoration('City'),
+                            controller: TextEditingController(text: _city),
+                            readOnly: true,
+                            validator: (value) =>
+                            _city == null || _city!.isEmpty
+                                ? 'Please enter city'
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            decoration: _buildInputDecoration('State'),
+                            controller: TextEditingController(text: _state),
+                            readOnly: true,
+                            validator: (value) =>
+                            _state == null || _state!.isEmpty
+                                ? 'Please enter state'
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _houseController,
+                      decoration:
+                      _buildInputDecoration('House no / Building Name'),
+                      validator: (value) => value?.isEmpty ?? true
+                          ? 'Please enter building name'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _roadController,
+                      decoration:
+                      _buildInputDecoration('Road Name / Area / Colony'),
+                      validator: (value) => value?.isEmpty ?? true
+                          ? 'Please enter road name'
+                          : null,
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.poppins(color: Colors.grey[700]),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        ElevatedButton(
+                          onPressed: () => _saveAddress(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryGreen,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Save Address',
+                            style: GoogleFonts.poppins(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _saveAddress(BuildContext context) async {
+    if (_formKey.currentState!.validate()) {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        try {
+          String fullAddress =
+              '${_houseController.text}, ${_roadController.text}, ${_city}, ${_state}, ${_pincodeController.text}';
+
+          await FirebaseFirestore.instance.collection('user_adress_list').add({
+            'userId': currentUser.uid,
+            'fullname': _nameController.text,
+            'mobile': _phoneController.text,
+            'address': fullAddress,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+          if (mounted) {
+            Navigator.pop(context); // Close the form dialog
+            CustomSnackbar.showSuccess(
+              context: context,
+              message: 'Address saved successfully!',
+            );
+            setState(() {}); // Refresh the address list
+          }
+        } catch (e) {
+          if (mounted) {
+            CustomSnackbar.showError(
+              context: context,
+              message: 'Failed to save address. Error: ${e.toString()}',
             );
           }
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryGreen,
-          foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(50),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
-          ),
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        child: Text(
-          'Save Address and Continue',
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
+        }
+      }
+    }
   }
 }
 
@@ -313,7 +492,8 @@ class PriceDetailsCard extends StatelessWidget {
     double cgst = subtotal * 0.09;
     double sgst = subtotal * 0.09;
     double igst = subtotal * 0.18;
-    double totalAmount = subtotal + cgst + sgst;
+    double deliveryCharges = subtotal < 299 ? 99 : 0;
+    double totalAmount = subtotal + cgst + sgst + deliveryCharges;
 
     return Container(
       decoration: BoxDecoration(
@@ -357,14 +537,60 @@ class PriceDetailsCard extends StatelessWidget {
             _buildPriceRow('SGST (9%)', '₹ ${sgst.toStringAsFixed(2)}'),
             _buildPriceRow('IGST (18%) - For inter-state only',
                 '₹ ${igst.toStringAsFixed(2)}'),
+            _buildPriceRow(
+                'Delivery Charges', '₹ ${deliveryCharges.toStringAsFixed(2)}'),
+            if (subtotal < 299)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'FREE delivery Over ₹299',
+                  style: GoogleFonts.poppins(
+                    color: Colors.green,
+                    fontSize: 12,
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 16),
+                    SizedBox(width: 4),
+                    Text(
+                      'Free Delivery. (Order value over ₹299)',
+                      style: GoogleFonts.poppins(
+                        color: Colors.green,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Divider(height: 1),
             ),
-            _buildPriceRow(
-              'Total Amount (incl. GST)',
-              '₹ ${totalAmount.toStringAsFixed(2)}',
-              isTotal: true,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Total Amount\n(incl. GST & Delivery)',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                Text(
+                  '₹ ${totalAmount.toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -831,6 +1057,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
     String formattedDeliveryDate =
         "${deliveryDate.day}/${deliveryDate.month}/${deliveryDate.year}";
 
+    // Calculate delivery charges
+    double subtotal = widget.productInfo['cartItems'] != null
+        ? (widget.productInfo['cartItems'] as List)
+        .fold(0, (sum, item) => sum + (item['price'] * item['quantity']))
+        : widget.productInfo['price'].toDouble();
+    double deliveryCharges = subtotal < 299 ? 99 : 0;
+
     // Create order object
     Map<String, dynamic> orderDetails = {
       'orderId': orderId,
@@ -844,9 +1077,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
               'price': widget.productInfo['price'],
               'quantity': widget.productInfo['quantity'] ?? 1,
               'image': widget.productInfo['image'],
+              'productId': widget.productInfo['productId'],
+              'category': widget.productInfo['category'] ?? 'fertilizer',
             }
           ],
       'totalAmount': widget.totalPrice,
+      'deliveryCharges': deliveryCharges,
       'shippingAddress': widget.addressDetails,
       'paymentMethod': _selectedPaymentMethod == 'cod'
           ? 'Cash on Delivery'
@@ -898,18 +1134,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
         });
       }
 
-      // Navigate to order success screen
+      // Navigate to home page
       if (mounted) {
         CustomSnackbar.showSuccess(
           context: context,
-          message: 'Payment successful!',
+          message: 'Order placed successfully!',
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const home(),
+          ),
+              (route) => false,
         );
       }
     } catch (e) {
       if (mounted) {
         CustomSnackbar.showError(
           context: context,
-          message: 'Payment failed. Please try again.',
+          message: 'Failed to place order. Please try again.',
         );
       }
     }

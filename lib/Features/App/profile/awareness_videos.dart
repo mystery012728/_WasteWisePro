@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AwarenessVideosPage extends StatefulWidget {
   const AwarenessVideosPage({Key? key}) : super(key: key);
@@ -96,8 +97,10 @@ class _AwarenessVideosPageState extends State<AwarenessVideosPage> {
             itemBuilder: (context, index) {
               final video = videos[index];
               final data = video.data() as Map<String, dynamic>;
-              final videoId = YoutubePlayer.convertUrlToId(data['videoUrl'] ?? '');
-              final timestamp = (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+              final videoId =
+              YoutubePlayer.convertUrlToId(data['videoUrl'] ?? '');
+              final timestamp =
+                  (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
               final thumbnailUrl = videoId != null
                   ? 'https://img.youtube.com/vi/$videoId/maxresdefault.jpg'
                   : null;
@@ -111,7 +114,10 @@ class _AwarenessVideosPageState extends State<AwarenessVideosPage> {
                   timestamp: timestamp,
                   index: index,
                 ),
-              ).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.1, end: 0);
+              )
+                  .animate(delay: (50 * index).ms)
+                  .fadeIn()
+                  .slideY(begin: 0.1, end: 0);
             },
           ),
         );
@@ -126,6 +132,16 @@ class _AwarenessVideosPageState extends State<AwarenessVideosPage> {
     required DateTime timestamp,
     required int index,
   }) {
+    int viewCount = data['viewCount'] ?? 0;
+    String formattedViewCount = viewCount.toString();
+
+    // Format large numbers
+    if (viewCount >= 1000 && viewCount < 1000000) {
+      formattedViewCount = '${(viewCount / 1000).toStringAsFixed(1)}K';
+    } else if (viewCount >= 1000000) {
+      formattedViewCount = '${(viewCount / 1000000).toStringAsFixed(1)}M';
+    }
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -162,7 +178,8 @@ class _AwarenessVideosPageState extends State<AwarenessVideosPage> {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
                   child: thumbnailUrl != null
                       ? CachedNetworkImage(
                     imageUrl: thumbnailUrl,
@@ -188,7 +205,8 @@ class _AwarenessVideosPageState extends State<AwarenessVideosPage> {
                     height: 200,
                     color: Colors.grey[300],
                     width: double.infinity,
-                    child: const Center(child: Icon(Icons.video_library, size: 50)),
+                    child: const Center(
+                        child: Icon(Icons.video_library, size: 50)),
                   ),
                 ),
                 // Play button overlay
@@ -213,7 +231,8 @@ class _AwarenessVideosPageState extends State<AwarenessVideosPage> {
                   bottom: 12,
                   right: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(4),
@@ -256,7 +275,7 @@ class _AwarenessVideosPageState extends State<AwarenessVideosPage> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${data['viewCount'] ?? 0} views',
+                        '$formattedViewCount views',
                         style: GoogleFonts.poppins(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -343,13 +362,110 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
   bool _isDisliked = false;
   int _likeCount = 0;
   int _dislikeCount = 0;
+  int _viewCount = 0;
   bool _isExpanded = false;
+  bool _viewTracked = false;
+
+  // Video aspect ratio and quality settings
+  double _aspectRatio = 16 / 9; // Default aspect ratio
+  String _currentQuality = 'auto'; // Default quality
+  final List<String> _availableQualities = [
+    'auto',
+    '144p',
+    '240p',
+    '360p',
+    '480p',
+    '720p',
+    '1080p'
+  ];
 
   @override
   void initState() {
     super.initState();
     _loadUserInteractions();
     _initializePlayer();
+    _trackVideoView();
+  }
+
+  // Track video view
+  void _trackVideoView() async {
+    try {
+      // First, check if user is already counted as a viewer
+      bool shouldCountView = true;
+
+      // Get current user ID (use device ID if not logged in)
+      String viewerId = '';
+      if (_auth.currentUser != null) {
+        viewerId = _auth.currentUser!.uid;
+      } else {
+        // For anonymous users, use a device-specific ID stored in local storage
+        // This is a simplified approach; in a real app you might use a more robust solution
+        final prefs = await SharedPreferences.getInstance();
+        viewerId = prefs.getString('device_id') ?? '';
+        if (viewerId.isEmpty) {
+          // Generate a new device ID if none exists
+          viewerId = 'device_${DateTime.now().millisecondsSinceEpoch}';
+          await prefs.setString('device_id', viewerId);
+        }
+      }
+
+      // Check if this user/device has already viewed this video
+      if (viewerId.isNotEmpty) {
+        final viewerDoc = await _firestore
+            .collection('video_views')
+            .where('videoId', isEqualTo: widget.videoId)
+            .where('viewerId', isEqualTo: viewerId)
+            .limit(1)
+            .get();
+
+        // If a document exists, this user has already viewed this video
+        if (viewerDoc.docs.isNotEmpty) {
+          shouldCountView = false;
+          print(
+              'User $viewerId has already viewed this video. View not counted.');
+        }
+      }
+
+      // Get the current video document to display current count
+      final videoRef =
+      _firestore.collection('awareness_videos').doc(widget.videoId);
+      final videoDoc = await videoRef.get();
+
+      if (videoDoc.exists) {
+        final data = videoDoc.data();
+        setState(() {
+          _viewCount = (data?['viewCount'] ?? 0);
+        });
+
+        // Only increment view count if this is a new view from this user/device
+        if (shouldCountView && !_viewTracked) {
+          // Increment view count in Firestore
+          await videoRef.update({'viewCount': FieldValue.increment(1)});
+
+          // Record this viewer to prevent duplicate counts
+          await _firestore.collection('video_views').add({
+            'videoId': widget.videoId,
+            'viewerId': viewerId,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+
+          // Update local state
+          setState(() {
+            _viewCount += 1;
+            _viewTracked = true;
+          });
+
+          print('View count incremented to: $_viewCount');
+        } else {
+          // Just mark as tracked locally so we don't try to count it again during this session
+          setState(() {
+            _viewTracked = true;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error tracking video view: $e');
+    }
   }
 
   void _loadUserInteractions() async {
@@ -366,6 +482,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
           setState(() {
             _likeCount = (data?['likeCount'] ?? 0);
             _dislikeCount = (data?['dislikeCount'] ?? 0);
+            _viewCount = (data?['viewCount'] ?? 0);
           });
         }
 
@@ -410,6 +527,10 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
 
   void _listener() {
     if (_isPlayerReady && mounted && !_controller.value.isFullScreen) {
+      // Track video view after 10 seconds of watching
+      if (!_viewTracked && _controller.value.position.inSeconds >= 10) {
+        _trackVideoView();
+      }
       setState(() {});
     }
   }
@@ -435,7 +556,8 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
 
     final userId = _auth.currentUser!.uid;
     final interactionRef = _firestore.collection('user_video_interactions');
-    final videoRef = _firestore.collection('awareness_videos').doc(widget.videoId);
+    final videoRef =
+    _firestore.collection('awareness_videos').doc(widget.videoId);
 
     try {
       // Get existing interaction if any
@@ -446,8 +568,12 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
           .get();
 
       final bool hasExisting = existingQuery.docs.isNotEmpty;
-      final bool wasLiked = hasExisting ? (existingQuery.docs.first.data()['liked'] ?? false) : false;
-      final bool wasDisliked = hasExisting ? (existingQuery.docs.first.data()['disliked'] ?? false) : false;
+      final bool wasLiked = hasExisting
+          ? (existingQuery.docs.first.data()['liked'] ?? false)
+          : false;
+      final bool wasDisliked = hasExisting
+          ? (existingQuery.docs.first.data()['disliked'] ?? false)
+          : false;
 
       // Determine state changes
       final bool willBeLiked = !_isLiked;
@@ -500,7 +626,6 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
         _likeCount += likeCountChange;
         _dislikeCount += dislikeCountChange;
       });
-
     } catch (e) {
       print('Error updating like: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -517,7 +642,8 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
 
     final userId = _auth.currentUser!.uid;
     final interactionRef = _firestore.collection('user_video_interactions');
-    final videoRef = _firestore.collection('awareness_videos').doc(widget.videoId);
+    final videoRef =
+    _firestore.collection('awareness_videos').doc(widget.videoId);
 
     try {
       // Get existing interaction if any
@@ -528,8 +654,12 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
           .get();
 
       final bool hasExisting = existingQuery.docs.isNotEmpty;
-      final bool wasLiked = hasExisting ? (existingQuery.docs.first.data()['liked'] ?? false) : false;
-      final bool wasDisliked = hasExisting ? (existingQuery.docs.first.data()['disliked'] ?? false) : false;
+      final bool wasLiked = hasExisting
+          ? (existingQuery.docs.first.data()['liked'] ?? false)
+          : false;
+      final bool wasDisliked = hasExisting
+          ? (existingQuery.docs.first.data()['disliked'] ?? false)
+          : false;
 
       // Determine state changes
       final bool willBeLiked = false; // Always remove like when disliking
@@ -582,7 +712,6 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
         _likeCount += likeCountChange;
         _dislikeCount += dislikeCountChange;
       });
-
     } catch (e) {
       print('Error updating dislike: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -717,7 +846,6 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
           ),
         ),
       );
-
     } catch (e) {
       print('Error posting comment: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -736,14 +864,328 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
     }
   }
 
+  // Method to adjust aspect ratio
+  void _adjustAspectRatio(double newRatio) {
+    setState(() {
+      _aspectRatio = newRatio;
+    });
+  }
+
+  // Method to change video quality
+  void _changeVideoQuality(String quality) {
+    setState(() {
+      _currentQuality = quality;
+    });
+
+    // For YouTube, we can't directly set quality through the API
+    // But we can provide visual feedback to users
+    _showQualityChangedSnackbar(quality);
+
+    // Note: YouTube API doesn't fully support direct quality setting
+    // through the flutter plugin but we show the UI for user selection
+  }
+
+  // Show a snackbar to inform user about quality change
+  void _showQualityChangedSnackbar(String quality) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Video quality changed to $quality',
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: widget.primaryGreen,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  // Show aspect ratio adjustment dialog
+  void _showAspectRatioDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Adjust Video Display',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              color: widget.primaryGreen,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Adjust the video display to your preference',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Aspect ratio options
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildAspectRatioButton('16:9', 16 / 9),
+                  _buildAspectRatioButton('4:3', 4 / 3),
+                  _buildAspectRatioButton('1:1', 1),
+                  _buildAspectRatioButton(
+                      'Fit', MediaQuery.of(context).size.width / 240),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Close',
+                style: GoogleFonts.poppins(
+                  color: widget.primaryGreen,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        );
+      },
+    );
+  }
+
+  // Build aspect ratio selection button
+  Widget _buildAspectRatioButton(String label, double ratio) {
+    final isSelected = ratio == _aspectRatio;
+
+    return InkWell(
+      onTap: () {
+        _adjustAspectRatio(ratio);
+        Navigator.of(context).pop();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? widget.primaryGreen : Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Show quality selection dialog with better visual cues
+  void _showQualitySelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        // Define the available qualities list directly with descriptions
+        final List<Map<String, String>> qualityOptions = [
+          {'quality': 'auto', 'description': 'Automatic (recommended)'},
+          {'quality': '1080p', 'description': 'HD (best quality)'},
+          {'quality': '720p', 'description': 'HD'},
+          {'quality': '480p', 'description': 'Standard definition'},
+          {'quality': '360p', 'description': 'Low'},
+          {'quality': '240p', 'description': 'Very low'},
+          {'quality': '144p', 'description': 'Lowest data usage'},
+        ];
+
+        // Calculate max height for dialog content
+        final double maxDialogHeight = MediaQuery.of(context).size.height * 0.6;
+
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: maxDialogHeight,
+              maxWidth: MediaQuery.of(context).size.width * 0.8,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.settings,
+                        color: widget.primaryGreen,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Video Quality',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Select your preferred quality:',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                Divider(),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: qualityOptions.map((option) {
+                        final isSelected = option['quality'] == _currentQuality;
+                        final bool isHD = option['quality'] == '1080p' ||
+                            option['quality'] == '720p';
+
+                        return Material(
+                          color: isSelected
+                              ? Colors.grey[100]
+                              : Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              _changeVideoQuality(option['quality']!);
+                              Navigator.of(context).pop();
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
+                              child: Row(
+                                children: [
+                                  isSelected
+                                      ? Icon(Icons.check_circle,
+                                      color: widget.primaryGreen, size: 20)
+                                      : Icon(Icons.circle_outlined,
+                                      color: Colors.grey, size: 20),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              option['quality']!,
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                                color: Colors.black87,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                            if (isHD) ...[
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: widget.primaryGreen,
+                                                  borderRadius:
+                                                  BorderRadius.circular(3),
+                                                ),
+                                                child: Text(
+                                                  'HD',
+                                                  style: GoogleFonts.poppins(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          option['description']!,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Show the video in fullscreen mode
   void _showFullScreenVideo() {
     if (_youtubeVideoId != null) {
-      Navigator.of(context).push(
+      // Use an async function to get the result from the fullscreen page
+      Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (context) => FullScreenVideoPage(
             videoId: _youtubeVideoId!,
             title: widget.title,
             primaryGreen: widget.primaryGreen,
+            currentQuality: _currentQuality,
+            availableQualities: _availableQualities,
+            viewTracked: _viewTracked, // Pass the tracking status
+            onViewTracked: () {
+              // This callback will be called when view is tracked in fullscreen mode
+              setState(() {
+                _viewTracked = true;
+              });
+            },
           ),
         ),
       );
@@ -782,7 +1224,8 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.primaryGreen,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -825,42 +1268,121 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // YouTube Player
-                YoutubePlayerBuilder(
-                  player: YoutubePlayer(
-                    controller: _controller,
-                    showVideoProgressIndicator: true,
-                    progressIndicatorColor: widget.primaryGreen,
-                    progressColors: ProgressBarColors(
-                      playedColor: widget.primaryGreen,
-                      handleColor: widget.lightGreen,
-                    ),
-                    onReady: () {
-                      setState(() {
-                        _isPlayerReady = true;
-                      });
-                    },
-                    bottomActions: [
-                      const SizedBox(width: 14.0),
-                      CurrentPosition(),
-                      const SizedBox(width: 8.0),
-                      ProgressBar(
-                        isExpanded: true,
-                        colors: ProgressBarColors(
-                          playedColor: widget.primaryGreen,
-                          handleColor: widget.lightGreen,
+                // YouTube Player with custom controls
+                Stack(
+                  children: [
+                    // YouTube Player with custom aspect ratio
+                    Container(
+                      width: double.infinity,
+                      child: AspectRatio(
+                        aspectRatio: _aspectRatio,
+                        child: YoutubePlayerBuilder(
+                          player: YoutubePlayer(
+                            controller: _controller,
+                            showVideoProgressIndicator: true,
+                            progressIndicatorColor: widget.primaryGreen,
+                            progressColors: ProgressBarColors(
+                              playedColor: widget.primaryGreen,
+                              handleColor: widget.lightGreen,
+                            ),
+                            onReady: () {
+                              setState(() {
+                                _isPlayerReady = true;
+                              });
+                            },
+                            topActions: [
+                              // Quality indicator (clickable)
+                              GestureDetector(
+                                onTap: _showQualitySelectionDialog,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  margin: const EdgeInsets.only(
+                                      top: 8, right: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius:
+                                    BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Show quality icon based on current quality
+                                      Icon(
+                                        Icons.hd,
+                                        color: _currentQuality ==
+                                            'auto' ||
+                                            _currentQuality ==
+                                                '1080p' ||
+                                            _currentQuality == '720p'
+                                            ? Colors.white
+                                            : Colors.grey[400],
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _currentQuality,
+                                        style: GoogleFonts.poppins(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Icon(
+                                        Icons.arrow_drop_down,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                            bottomActions: [
+                              const SizedBox(width: 14.0),
+                              CurrentPosition(),
+                              const SizedBox(width: 8.0),
+                              ProgressBar(
+                                isExpanded: true,
+                                colors: ProgressBarColors(
+                                  playedColor: widget.primaryGreen,
+                                  handleColor: widget.lightGreen,
+                                ),
+                              ),
+                              RemainingDuration(),
+                              IconButton(
+                                icon: const Icon(Icons.fullscreen_rounded,
+                                    color: Colors.white),
+                                onPressed: _showFullScreenVideo,
+                              ),
+                            ],
+                          ),
+                          builder: (context, player) {
+                            return player;
+                          },
                         ),
                       ),
-                      RemainingDuration(),
-                      IconButton(
-                        icon: const Icon(Icons.fullscreen_rounded, color: Colors.white),
-                        onPressed: _showFullScreenVideo,
+                    ),
+
+                    // Controls overlay - only keep aspect ratio button, remove settings button
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.aspect_ratio,
+                              color: Colors.white),
+                          iconSize: 20,
+                          onPressed: _showAspectRatioDialog,
+                          tooltip: 'Adjust display',
+                        ),
                       ),
-                    ],
-                  ),
-                  builder: (context, player) {
-                    return player;
-                  },
+                    ),
+                  ],
                 ),
 
                 // Video Info
@@ -890,27 +1412,45 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                       // Action Buttons
                       Container(
                         margin: const EdgeInsets.symmetric(vertical: 16),
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 12, horizontal: 8),
                         decoration: BoxDecoration(
                           color: Colors.grey[100],
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          mainAxisAlignment:
+                          MainAxisAlignment.spaceAround,
                           children: [
+                            // View Count Indicator
+                            _buildActionButton(
+                              icon: Icons.visibility_outlined,
+                              label: _formatNumber(_viewCount),
+                              color: Colors.grey[700]!,
+                              onTap: () {}, // Read-only indicator
+                            ),
+
                             // Like Button
                             _buildActionButton(
-                              icon: _isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                              icon: _isLiked
+                                  ? Icons.thumb_up
+                                  : Icons.thumb_up_outlined,
                               label: _formatNumber(_likeCount),
-                              color: _isLiked ? widget.primaryGreen : Colors.grey[700]!,
+                              color: _isLiked
+                                  ? widget.primaryGreen
+                                  : Colors.grey[700]!,
                               onTap: _handleLike,
                             ),
 
                             // Dislike Button
                             _buildActionButton(
-                              icon: _isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+                              icon: _isDisliked
+                                  ? Icons.thumb_down
+                                  : Icons.thumb_down_outlined,
                               label: _formatNumber(_dislikeCount),
-                              color: _isDisliked ? Colors.red : Colors.grey[700]!,
+                              color: _isDisliked
+                                  ? Colors.red
+                                  : Colors.grey[700]!,
                               onTap: _handleDislike,
                             ),
 
@@ -949,7 +1489,9 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                             ),
                           ),
                           trailing: Icon(
-                            _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                            _isExpanded
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
                             color: widget.primaryGreen,
                           ),
                           onExpansionChanged: (expanded) {
@@ -1001,7 +1543,8 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
 
                             // Add Comment
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
                               decoration: BoxDecoration(
                                 color: Colors.grey[100],
                                 borderRadius: BorderRadius.circular(12),
@@ -1011,18 +1554,26 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                                   CircleAvatar(
                                     backgroundColor: Colors.grey[300],
                                     radius: 20,
-                                    child: _auth.currentUser?.photoURL != null
+                                    child: _auth.currentUser?.photoURL !=
+                                        null
                                         ? ClipOval(
                                       child: CachedNetworkImage(
-                                        imageUrl: _auth.currentUser!.photoURL!,
+                                        imageUrl: _auth
+                                            .currentUser!.photoURL!,
                                         width: 40,
                                         height: 40,
                                         fit: BoxFit.cover,
-                                        placeholder: (context, url) => CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: widget.primaryGreen,
-                                        ),
-                                        errorWidget: (context, url, error) => const Icon(Icons.person),
+                                        placeholder: (context,
+                                            url) =>
+                                            CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color:
+                                              widget.primaryGreen,
+                                            ),
+                                        errorWidget:
+                                            (context, url, error) =>
+                                        const Icon(
+                                            Icons.person),
                                       ),
                                     )
                                         : const Icon(Icons.person),
@@ -1033,14 +1584,16 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                                       controller: _commentController,
                                       decoration: InputDecoration(
                                         hintText: 'Add a comment...',
-                                        hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+                                        hintStyle: GoogleFonts.poppins(
+                                            color: Colors.grey[500]),
                                         border: InputBorder.none,
                                       ),
                                       style: GoogleFonts.poppins(),
                                     ),
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.send_rounded, color: widget.primaryGreen),
+                                    icon: Icon(Icons.send_rounded,
+                                        color: widget.primaryGreen),
                                     onPressed: _postComment,
                                   ),
                                 ],
@@ -1197,7 +1750,8 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                             color: widget.primaryGreen,
                           ),
                         ),
-                        errorWidget: (context, url, error) => const Icon(Icons.person, size: 16),
+                        errorWidget: (context, url, error) =>
+                        const Icon(Icons.person, size: 16),
                       ),
                     )
                         : const Icon(Icons.person, size: 16),
@@ -1239,7 +1793,10 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                   ),
                 ],
               ),
-            ).animate(delay: (50 * index).ms).fadeIn().slideY(begin: 0.1, end: 0);
+            )
+                .animate(delay: (50 * index).ms)
+                .fadeIn()
+                .slideY(begin: 0.1, end: 0);
           },
         );
       },
@@ -1251,12 +1808,20 @@ class FullScreenVideoPage extends StatefulWidget {
   final String videoId;
   final String title;
   final Color primaryGreen;
+  final String currentQuality;
+  final List<String> availableQualities;
+  final bool viewTracked;
+  final VoidCallback onViewTracked; // Add a callback function
 
   const FullScreenVideoPage({
     Key? key,
     required this.videoId,
     required this.title,
     required this.primaryGreen,
+    required this.currentQuality,
+    required this.availableQualities,
+    required this.viewTracked,
+    required this.onViewTracked, // Add this parameter
   }) : super(key: key);
 
   @override
@@ -1266,10 +1831,18 @@ class FullScreenVideoPage extends StatefulWidget {
 class _FullScreenVideoPageState extends State<FullScreenVideoPage> {
   late YoutubePlayerController _controller;
   bool _isPlayerReady = false;
+  double _aspectRatio = 16 / 9; // Default aspect ratio
+  String _currentQuality = 'auto';
+  bool _showControls = true;
+  bool _viewTracked = false;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   void initState() {
     super.initState();
+    _currentQuality = widget.currentQuality;
+    _viewTracked = widget.viewTracked;
     _controller = YoutubePlayerController(
       initialVideoId: widget.videoId,
       flags: const YoutubePlayerFlags(
@@ -1293,8 +1866,380 @@ class _FullScreenVideoPageState extends State<FullScreenVideoPage> {
 
   void _listener() {
     if (_isPlayerReady && mounted) {
+      // Track view after 10 seconds of watching if not already tracked
+      if (!_viewTracked && _controller.value.position.inSeconds >= 10) {
+        _trackVideoView();
+      }
       setState(() {});
     }
+  }
+
+  // Track video view in fullscreen mode
+  void _trackVideoView() async {
+    try {
+      // First, check if user is already counted as a viewer
+      bool shouldCountView = true;
+
+      // Get current user ID (use device ID if not logged in)
+      String viewerId = '';
+      if (_auth.currentUser != null) {
+        viewerId = _auth.currentUser!.uid;
+      } else {
+        // For anonymous users, use a device-specific ID stored in local storage
+        final prefs = await SharedPreferences.getInstance();
+        viewerId = prefs.getString('device_id') ?? '';
+        if (viewerId.isEmpty) {
+          // Generate a new device ID if none exists
+          viewerId = 'device_${DateTime.now().millisecondsSinceEpoch}';
+          await prefs.setString('device_id', viewerId);
+        }
+      }
+
+      // Check if this user/device has already viewed this video
+      if (viewerId.isNotEmpty) {
+        final viewerDoc = await _firestore
+            .collection('video_views')
+            .where('videoId', isEqualTo: widget.videoId)
+            .where('viewerId', isEqualTo: viewerId)
+            .limit(1)
+            .get();
+
+        // If a document exists, this user has already viewed this video
+        if (viewerDoc.docs.isNotEmpty) {
+          shouldCountView = false;
+          print(
+              'User $viewerId has already viewed this video. View not counted (fullscreen mode).');
+        }
+      }
+
+      // Get the current video document
+      final videoRef =
+      _firestore.collection('awareness_videos').doc(widget.videoId);
+
+      // Only increment view count if this is a new view from this user/device
+      if (shouldCountView && !_viewTracked) {
+        // Increment view count in Firestore
+        await videoRef.update({'viewCount': FieldValue.increment(1)});
+
+        // Record this viewer to prevent duplicate counts
+        await _firestore.collection('video_views').add({
+          'videoId': widget.videoId,
+          'viewerId': viewerId,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        print('View count incremented (fullscreen mode)');
+
+        // Call the callback to update parent view tracking
+        widget.onViewTracked();
+      }
+
+      // Update local state
+      setState(() {
+        _viewTracked = true;
+      });
+    } catch (e) {
+      print('Error tracking video view in fullscreen mode: $e');
+    }
+  }
+
+  // Method to adjust aspect ratio
+  void _adjustAspectRatio(double newRatio) {
+    setState(() {
+      _aspectRatio = newRatio;
+    });
+  }
+
+  // Method to change video quality
+  void _changeVideoQuality(String quality) {
+    setState(() {
+      _currentQuality = quality;
+    });
+
+    // Show quality changed notification
+    _showQualityChangedSnackbar(quality);
+  }
+
+  // Show a snackbar to inform user about quality change
+  void _showQualityChangedSnackbar(String quality) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Video quality changed to $quality',
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: widget.primaryGreen,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  // Show aspect ratio adjustment dialog
+  void _showAspectRatioDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Adjust Video Display',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              color: widget.primaryGreen,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Adjust the video display to your preference',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Aspect ratio options
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildAspectRatioButton('16:9', 16 / 9),
+                  _buildAspectRatioButton('4:3', 4 / 3),
+                  _buildAspectRatioButton('1:1', 1),
+                  _buildAspectRatioButton(
+                      'Fit', MediaQuery.of(context).size.width / 240),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Close',
+                style: GoogleFonts.poppins(
+                  color: widget.primaryGreen,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        );
+      },
+    );
+  }
+
+  // Build aspect ratio selection button
+  Widget _buildAspectRatioButton(String label, double ratio) {
+    final isSelected = ratio == _aspectRatio;
+
+    return InkWell(
+      onTap: () {
+        _adjustAspectRatio(ratio);
+        Navigator.of(context).pop();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? widget.primaryGreen : Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Show quality selection dialog with better visual cues
+  void _showQualitySelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        // Define the available qualities list directly with descriptions
+        final List<Map<String, String>> qualityOptions = [
+          {'quality': 'auto', 'description': 'Automatic (recommended)'},
+          {'quality': '1080p', 'description': 'HD (best quality)'},
+          {'quality': '720p', 'description': 'HD'},
+          {'quality': '480p', 'description': 'Standard definition'},
+          {'quality': '360p', 'description': 'Low'},
+          {'quality': '240p', 'description': 'Very low'},
+          {'quality': '144p', 'description': 'Lowest data usage'},
+        ];
+
+        // Calculate max height for dialog content
+        final double maxDialogHeight = MediaQuery.of(context).size.height * 0.6;
+
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: maxDialogHeight,
+              maxWidth: MediaQuery.of(context).size.width * 0.8,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.settings,
+                        color: widget.primaryGreen,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Video Quality',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Select your preferred quality:',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                Divider(),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: qualityOptions.map((option) {
+                        final isSelected = option['quality'] == _currentQuality;
+                        final bool isHD = option['quality'] == '1080p' ||
+                            option['quality'] == '720p';
+
+                        return Material(
+                          color: isSelected
+                              ? Colors.grey[100]
+                              : Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              _changeVideoQuality(option['quality']!);
+                              Navigator.of(context).pop();
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
+                              child: Row(
+                                children: [
+                                  isSelected
+                                      ? Icon(Icons.check_circle,
+                                      color: widget.primaryGreen, size: 20)
+                                      : Icon(Icons.circle_outlined,
+                                      color: Colors.grey, size: 20),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              option['quality']!,
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                                color: Colors.black87,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                            if (isHD) ...[
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: widget.primaryGreen,
+                                                  borderRadius:
+                                                  BorderRadius.circular(3),
+                                                ),
+                                                child: Text(
+                                                  'HD',
+                                                  style: GoogleFonts.poppins(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          option['description']!,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -1313,61 +2258,138 @@ class _FullScreenVideoPageState extends State<FullScreenVideoPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Stack(
-          children: [
-            Center(
-              child: YoutubePlayerBuilder(
-                player: YoutubePlayer(
-                  controller: _controller,
-                  showVideoProgressIndicator: true,
-                  progressIndicatorColor: widget.primaryGreen,
-                  progressColors: ProgressBarColors(
-                    playedColor: widget.primaryGreen,
-                    handleColor: Colors.greenAccent,
-                  ),
-                  onReady: () {
-                    setState(() {
-                      _isPlayerReady = true;
-                    });
-                  },
-                  bottomActions: [
-                    const SizedBox(width: 14.0),
-                    CurrentPosition(),
-                    const SizedBox(width: 8.0),
-                    ProgressBar(
-                      isExpanded: true,
-                      colors: ProgressBarColors(
+        child: GestureDetector(
+          onTap: () {
+            setState(() {
+              _showControls = !_showControls;
+            });
+          },
+          child: Stack(
+            children: [
+              // YouTube player with custom aspect ratio
+              Center(
+                child: AspectRatio(
+                  aspectRatio: _aspectRatio,
+                  child: YoutubePlayerBuilder(
+                    player: YoutubePlayer(
+                      controller: _controller,
+                      showVideoProgressIndicator: true,
+                      progressIndicatorColor: widget.primaryGreen,
+                      progressColors: ProgressBarColors(
                         playedColor: widget.primaryGreen,
                         handleColor: Colors.greenAccent,
                       ),
+                      onReady: () {
+                        setState(() {
+                          _isPlayerReady = true;
+                        });
+                      },
+                      topActions: [
+                        // Clickable quality indicator in fullscreen mode
+                        GestureDetector(
+                          onTap: _showQualitySelectionDialog,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            margin: const EdgeInsets.only(top: 8, right: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _currentQuality == 'auto' ||
+                                      _currentQuality == '1080p' ||
+                                      _currentQuality == '720p'
+                                      ? Icons.hd
+                                      : Icons.high_quality,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _currentQuality,
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      bottomActions: [
+                        const SizedBox(width: 14.0),
+                        CurrentPosition(),
+                        const SizedBox(width: 8.0),
+                        ProgressBar(
+                          isExpanded: true,
+                          colors: ProgressBarColors(
+                            playedColor: widget.primaryGreen,
+                            handleColor: Colors.greenAccent,
+                          ),
+                        ),
+                        RemainingDuration(),
+                      ],
                     ),
-                    RemainingDuration(),
-                  ],
-                ),
-                builder: (context, player) {
-                  return player;
-                },
-              ),
-            ),
-            Positioned(
-              top: 10,
-              left: 10,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_rounded,
-                    color: Colors.white,
-                    size: 30,
+                    builder: (context, player) {
+                      return player;
+                    },
                   ),
-                  onPressed: () => Navigator.pop(context),
                 ),
               ),
-            ),
-          ],
+
+              // Video controls overlay (conditionally shown) - now with simplified UI
+              if (_showControls) ...[
+                // Back button
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ),
+
+                // Only keep the aspect ratio button in controls
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.aspect_ratio, color: Colors.white),
+                      iconSize: 20,
+                      onPressed: _showAspectRatioDialog,
+                      tooltip: 'Adjust display',
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
