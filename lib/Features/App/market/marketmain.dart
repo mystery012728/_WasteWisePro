@@ -358,7 +358,7 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
             return Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: SizedBox(
-                  height: 360,
+                  height: 380,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
@@ -366,21 +366,30 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                     itemCount: products.length,
                     itemBuilder: (context, index) {
                       final product = products[index];
-                      final double oldPrice = (product['oldPrice'] != null)
-                          ? (product['oldPrice'] is int
-                          ? (product['oldPrice'] as int).toDouble()
-                          : (product['oldPrice'] as double))
-                          : 0.0;
-
                       final double price = (product['price'] != null)
                           ? (product['price'] is int
                           ? (product['price'] as int).toDouble()
                           : (product['price'] as double))
                           : 0.0;
 
+                      final double oldPrice = (product['oldPrice'] != null)
+                          ? (product['oldPrice'] is int
+                          ? (product['oldPrice'] as int).toDouble()
+                          : (product['oldPrice'] as double))
+                          : 0.0;
+
                       final double discountPercentage = oldPrice > 0
                           ? ((oldPrice - price) / oldPrice) * 100
                           : 0;
+
+                      final double rating = (product['rating'] != null)
+                          ? (product['rating'] is int
+                          ? (product['rating'] as int).toDouble()
+                          : (product['rating'] as double))
+                          : 0.0;
+
+                      final int reviewCount =
+                          product['reviewCount'] as int? ?? 0;
 
                       return GestureDetector(
                         onTap: () {
@@ -393,7 +402,7 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                           );
                         },
                         child: _buildProductCard(
-                          context,
+                          context: context,
                           title: product['title'],
                           price: price,
                           oldPrice: oldPrice,
@@ -401,6 +410,8 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                           asset: product['image'],
                           discountPercentage: discountPercentage,
                           product: product,
+                          rating: rating,
+                          reviewCount: reviewCount,
                         ).animate(delay: (index * 100).ms).fadeIn().slideX(),
                       );
                     },
@@ -412,19 +423,21 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildProductCard(
-      BuildContext context, {
-        required String title,
-        required double price,
-        required double oldPrice,
-        required String tag,
-        required String asset,
-        required double discountPercentage,
-        required Map<String, dynamic> product,
-      }) {
+  Widget _buildProductCard({
+    required BuildContext context,
+    required String title,
+    required double price,
+    required double oldPrice,
+    required String tag,
+    required String asset,
+    required double discountPercentage,
+    required Map<String, dynamic> product,
+    required double rating,
+    required int reviewCount,
+  }) {
     return Container(
       width: 250,
-      margin: const EdgeInsets.only(right: 16),
+      margin: const EdgeInsets.only(right: 16, bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -437,6 +450,7 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Stack(
@@ -446,7 +460,7 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                 const BorderRadius.vertical(top: Radius.circular(20)),
                 child: CachedNetworkImage(
                   imageUrl: asset,
-                  height: 180,
+                  height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
@@ -584,6 +598,29 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                     ],
                   ],
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    ...List.generate(
+                      5,
+                          (index) => Icon(
+                        index < rating.round() ? Icons.star : Icons.star_border,
+                        size: 16,
+                        color: Colors.amber,
+                      ),
+                    ),
+                    if (reviewCount > 0) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '($reviewCount)',
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
                 if (discountPercentage > 0)
                   Container(
                     margin: const EdgeInsets.only(top: 8),
@@ -611,13 +648,12 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Add product to cart functionality
                       Provider.of<CartProvider>(context, listen: false)
                           .addToCart({
                         'title': title,
                         'price': price,
                         'image': asset,
-                        'quantity': 1, // Default quantity
+                        'quantity': 1,
                       });
                       CustomSnackbar.showSuccess(
                         context: context,
@@ -629,12 +665,13 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
                     child: Text(
                       'Add to Cart',
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w600,
+                        fontSize: 13,
                       ),
                     ),
                   ),

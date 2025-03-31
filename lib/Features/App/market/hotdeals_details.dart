@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:flutternew/Features/App/market/OGprovidere.dart'; // Make sure this is the correct path to your CartProvider
+import 'package:flutternew/Features/App/market/product_rating_page.dart';
 
 class HotDealsDetails extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -18,9 +19,17 @@ class HotDealsDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final double price = _toDouble(product['price']);
     final double oldPrice = _toDouble(product['oldPrice']);
-    final double discountPercentage = oldPrice > price
-        ? ((oldPrice - price) / oldPrice) * 100
-        : 0;
+    final double discountPercentage =
+    oldPrice > price ? ((oldPrice - price) / oldPrice) * 100 : 0;
+    final double rating = product['rating']?.toDouble() ?? 0.0;
+    final int reviewCount = product['reviewCount'] as int? ?? 0;
+    final Map<String, dynamic> ratingStats =
+        product['ratingStats'] as Map<String, dynamic>? ??
+            {
+              'average': 0.0,
+              'total': 0,
+              'count': {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0}
+            };
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -75,11 +84,14 @@ class HotDealsDetails extends StatelessWidget {
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Center(
                                 child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(primaryRed),
+                                  valueColor:
+                                  AlwaysStoppedAnimation<Color>(primaryRed),
                                 ),
                               ),
-                              errorWidget: (context, url, error) =>
-                              const Icon(Icons.broken_image, size: 100, color: Colors.red),
+                              errorWidget: (context, url, error) => const Icon(
+                                  Icons.broken_image,
+                                  size: 100,
+                                  color: Colors.red),
                             ),
                           ),
                         ),
@@ -89,7 +101,8 @@ class HotDealsDetails extends StatelessWidget {
                           top: 16,
                           right: 16,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [primaryRed, lightRed],
@@ -142,6 +155,180 @@ class HotDealsDetails extends StatelessWidget {
                     ],
                   ).animate().fadeIn(delay: 400.ms).slideX(),
                   const SizedBox(height: 16),
+
+                  // Rating section
+                  GestureDetector(
+                    onTap: () {
+                      if (reviewCount > 0) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProductReviewsPage(
+                              productId: product['productId'],
+                              collectionName: 'hotdeals',
+                              primaryColor: primaryRed,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        Row(
+                          children: List.generate(
+                            5,
+                                (index) => Icon(
+                              (index < rating.round())
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              size: 24,
+                              color: Colors.amber,
+                            ).animate(delay: (100 * index).ms).fadeIn().scale(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '(${rating.toStringAsFixed(1)})',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey[600],
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  if (reviewCount > 0) ...[
+                    const SizedBox(height: 16),
+                    // Rating breakdown
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Rating Breakdown',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: primaryRed,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ...List.generate(
+                            5,
+                                (index) {
+                              final starNumber = 5 - index;
+                              final count = ratingStats['count']
+                              [starNumber.toString()] as int? ??
+                                  0;
+                              final percentage = reviewCount > 0
+                                  ? (count / reviewCount * 100)
+                                  : 0.0;
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '$starNumber',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.star,
+                                      size: 16,
+                                      color: Colors.amber,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Stack(
+                                        children: [
+                                          Container(
+                                            height: 8,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[300],
+                                              borderRadius:
+                                              BorderRadius.circular(4),
+                                            ),
+                                          ),
+                                          FractionallySizedBox(
+                                            widthFactor: percentage / 100,
+                                            child: Container(
+                                              height: 8,
+                                              decoration: BoxDecoration(
+                                                color: primaryRed,
+                                                borderRadius:
+                                                BorderRadius.circular(4),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 40,
+                                      child: Text(
+                                        '${percentage.toStringAsFixed(0)}%',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProductReviewsPage(
+                                    productId: product['productId'],
+                                    collectionName: 'hotdeals',
+                                    primaryColor: primaryRed,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: Icon(Icons.comment, color: primaryRed),
+                            label: Text(
+                              'See All Reviews ($reviewCount)',
+                              style: GoogleFonts.poppins(
+                                color: primaryRed,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: primaryRed),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -185,7 +372,8 @@ class HotDealsDetails extends StatelessWidget {
                   child: _buildButton(
                     context: context,
                     onPressed: () {
-                      Provider.of<CartProvider>(context, listen: false).addToCart({
+                      Provider.of<CartProvider>(context, listen: false)
+                          .addToCart({
                         'title': product['title'],
                         'price': price,
                         'image': product['image'],

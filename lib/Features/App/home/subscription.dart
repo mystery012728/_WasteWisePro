@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutternew/Features/App/home/home.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 class AddressScreen extends StatefulWidget {
   final Function(Map<String, String>) onAddressSelected;
@@ -354,13 +355,28 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
     if (snapshot.docs.isNotEmpty) {
       final activeSubscription =
       snapshot.docs.first.data() as Map<String, dynamic>;
+      final endDate = (activeSubscription['end_date'] as Timestamp).toDate();
+      final daysLeft = endDate.difference(DateTime.now()).inDays;
+
       setState(() {
         isSubscriptionActive = true;
-        subscriptionEndDate =
-            (activeSubscription['end_date'] as Timestamp).toDate();
+        subscriptionEndDate = endDate;
         activeSubscriptionType =
         activeSubscription['subscription_type'] as String;
       });
+
+      // Check if subscription is about to expire (3 days before)
+      if (daysLeft <= 3 && daysLeft > 0) {
+        // Create expiry notification
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'user_id': FirebaseAuth.instance.currentUser?.uid,
+          'message':
+          'Your $activeSubscriptionType subscription will expire in $daysLeft ${daysLeft == 1 ? 'day' : 'days'}. Please renew to continue our services.',
+          'created_at': Timestamp.now(),
+          'read': false,
+          'type': 'subscription_expiring'
+        });
+      }
     }
   }
 
@@ -475,6 +491,12 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
 
   Future<void> _saveSubscriptionDetails() async {
     try {
+      // Get current user
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception("User not authenticated");
+      }
+
       DateTime endDate;
       double totalPrice =
       isMonthlySelected ? monthlyPrice * monthsCount : weeklyPrice;
@@ -519,35 +541,24 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         }
       }
 
-      // Make sure the user is logged in
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception("User not authenticated");
-      }
-
-      // Format pickup time to match the regex pattern in security rules
-      String formattedPickupTime = selectedPickUpTime?.format(context) ?? "";
-
       // Use a transaction to ensure both documents are created
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         // Create a document reference for subscription details
-        DocumentReference subscriptionRef = FirebaseFirestore.instance
-            .collection('subscription_details')
-            .doc(); // Generate a new document ID
+        DocumentReference subscriptionRef =
+        FirebaseFirestore.instance.collection('subscription_details').doc();
 
         // Create a document reference for upcoming pickup
-        DocumentReference pickupRef = FirebaseFirestore.instance
-            .collection('upcoming_pickups')
-            .doc(); // Generate a new document ID
+        DocumentReference pickupRef =
+        FirebaseFirestore.instance.collection('upcoming_pickups').doc();
 
-        // Set data for subscription details
+        // Set data for subscription details with userId
         transaction.set(subscriptionRef, {
-          'userId': user.uid,
+          'userId': currentUser.uid,
           'subscription_type': isMonthlySelected ? 'Monthly' : 'Weekly',
           'months_count': isMonthlySelected ? monthsCount : null,
           'start_date': selectedStartDate,
           'end_date': endDate,
-          'pickup_time': formattedPickupTime,
+          'pickup_time': selectedPickUpTime?.format(context),
           'customer_name': name,
           'customer_mobile': mobile,
           'pickup_address': address,
@@ -559,23 +570,41 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
           'created_at': FieldValue.serverTimestamp(),
           'status': 'active',
           'pickup_time_changed': false,
+          'created_by': currentUser.uid,
+          'updated_at': FieldValue.serverTimestamp(),
+          'updated_by': currentUser.uid,
         });
 
-        // Set data for upcoming pickup
+        // Set data for upcoming pickup with userId
         transaction.set(pickupRef, {
           'subscription_id': subscriptionRef.id,
-          'userId': user.uid,
+          'userId': currentUser.uid,
           'customer_name': name,
           'customer_mobile': mobile,
           'pickup_date': Timestamp.fromDate(selectedStartDate!),
-          'scheduled_time': formattedPickupTime,
+          'scheduled_time': selectedPickUpTime?.format(context),
           'subscription_type': isMonthlySelected ? 'Monthly' : 'Weekly',
           'pickup_address': address,
           'household_waste_types': selectedHouseholdWaste,
           'commercial_waste_types': selectedCommercialWaste,
           'status': 'active',
           'type': 'subscription',
-          'created_at': FieldValue.serverTimestamp()
+          'created_at': FieldValue.serverTimestamp(),
+          'created_by': currentUser.uid,
+          'updated_at': FieldValue.serverTimestamp(),
+          'updated_by': currentUser.uid,
+        });
+
+        // Create notification for subscription activation
+        DocumentReference notificationRef =
+        FirebaseFirestore.instance.collection('notifications').doc();
+        transaction.set(notificationRef, {
+          'user_id': currentUser.uid,
+          'message':
+          'Your ${isMonthlySelected ? "Monthly" : "Weekly"} subscription has been activated successfully! Your first pickup is scheduled for ${DateFormat('MMM d, yyyy').format(selectedStartDate!)} at ${selectedPickUpTime?.format(context)}.',
+          'created_at': FieldValue.serverTimestamp(),
+          'read': false,
+          'type': 'subscription_activated'
         });
       });
 

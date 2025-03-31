@@ -87,6 +87,16 @@ class _OrderedProductDetailsState extends State<OrderedProductDetails> {
         'cancelledAt': DateTime.now().toIso8601String(),
       });
 
+      // Create cancellation notification
+      await _firestore.collection('notifications').add({
+        'user_id': _orderDetails['userId'],
+        'message':
+        'Your order #$orderId has been cancelled successfully. We hope to serve you again soon!',
+        'created_at': Timestamp.now(),
+        'read': false,
+        'type': 'order_cancelled'
+      });
+
       // Delete from orders collection
       await _firestore.collection('orders').doc(orderId).delete();
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
 
 class NotificationPreferencesPage extends StatefulWidget {
   const NotificationPreferencesPage({Key? key}) : super(key: key);
@@ -22,6 +23,47 @@ class _NotificationPreferencesPageState
   void initState() {
     super.initState();
     _loadPreferences();
+    _initializeNotificationChannels();
+  }
+
+  Future<void> _initializeNotificationChannels() async {
+    await AwesomeNotifications().initialize(
+      null,
+      [
+        NotificationChannel(
+          channelKey: 'pickup_reminders',
+          channelName: 'Pickup Reminders',
+          channelDescription: 'Notifications for scheduled pickups',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.High,
+          enableVibration: true,
+        ),
+        NotificationChannel(
+          channelKey: 'order_updates',
+          channelName: 'Order Updates',
+          channelDescription: 'Updates about your orders',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.High,
+          enableVibration: true,
+        ),
+        NotificationChannel(
+          channelKey: 'promotional',
+          channelName: 'Promotions',
+          channelDescription: 'Special offers and promotions',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.Default,
+          enableVibration: false,
+        ),
+        NotificationChannel(
+          channelKey: 'news_tips',
+          channelName: 'News & Tips',
+          channelDescription: 'Waste management tips and news',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.Low,
+          enableVibration: false,
+        ),
+      ],
+    );
   }
 
   Future<void> _loadPreferences() async {
@@ -41,6 +83,109 @@ class _NotificationPreferencesPageState
     await prefs.setBool('order_updates', _orderUpdates);
     await prefs.setBool('promotional_notifications', _promotionalNotifications);
     await prefs.setBool('news_and_tips', _newsAndTips);
+
+    // Update notification channel settings
+    await _updateNotificationChannels();
+  }
+
+  Future<void> _updateNotificationChannels() async {
+    // Toggle channels based on preferences
+    if (_pickupReminders) {
+      await AwesomeNotifications().setChannel(
+        NotificationChannel(
+          channelKey: 'pickup_reminders',
+          channelName: 'Pickup Reminders',
+          channelDescription: 'Notifications for scheduled pickups',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.High,
+          enableVibration: true,
+        ),
+      );
+    } else {
+      await AwesomeNotifications().setChannel(
+        NotificationChannel(
+          channelKey: 'pickup_reminders',
+          channelName: 'Pickup Reminders',
+          channelDescription: 'Notifications for scheduled pickups',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.None,
+          enableVibration: false,
+        ),
+      );
+    }
+
+    // Repeat for other channels
+    if (_orderUpdates) {
+      await AwesomeNotifications().setChannel(
+        NotificationChannel(
+          channelKey: 'order_updates',
+          channelName: 'Order Updates',
+          channelDescription: 'Updates about your orders',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.High,
+          enableVibration: true,
+        ),
+      );
+    } else {
+      await AwesomeNotifications().setChannel(
+        NotificationChannel(
+          channelKey: 'order_updates',
+          channelName: 'Order Updates',
+          channelDescription: 'Updates about your orders',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.None,
+          enableVibration: false,
+        ),
+      );
+    }
+
+    if (_promotionalNotifications) {
+      await AwesomeNotifications().setChannel(
+        NotificationChannel(
+          channelKey: 'promotional',
+          channelName: 'Promotions',
+          channelDescription: 'Special offers and promotions',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.Default,
+          enableVibration: false,
+        ),
+      );
+    } else {
+      await AwesomeNotifications().setChannel(
+        NotificationChannel(
+          channelKey: 'promotional',
+          channelName: 'Promotions',
+          channelDescription: 'Special offers and promotions',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.None,
+          enableVibration: false,
+        ),
+      );
+    }
+
+    if (_newsAndTips) {
+      await AwesomeNotifications().setChannel(
+        NotificationChannel(
+          channelKey: 'news_tips',
+          channelName: 'News & Tips',
+          channelDescription: 'Waste management tips and news',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.Low,
+          enableVibration: false,
+        ),
+      );
+    } else {
+      await AwesomeNotifications().setChannel(
+        NotificationChannel(
+          channelKey: 'news_tips',
+          channelName: 'News & Tips',
+          channelDescription: 'Waste management tips and news',
+          defaultColor: Colors.green.shade800,
+          importance: NotificationImportance.None,
+          enableVibration: false,
+        ),
+      );
+    }
   }
 
   Widget _buildNotificationOption({

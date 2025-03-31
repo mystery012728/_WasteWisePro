@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UpcomingPickUpPage extends StatefulWidget {
   @override
@@ -148,6 +149,19 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
       if (endDate.isBefore(now.add(Duration(days: 1))) &&
           endDate.isAfter(now)) {
         NotificationUtils.createExpirationNotification();
+
+        // Create notification in Firestore
+        final userId = FirebaseAuth.instance.currentUser?.uid;
+        if (userId != null) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'user_id': userId,
+            'message':
+            'Your subscription will expire in 1 day. Please renew it.',
+            'created_at': Timestamp.now(),
+            'read': false,
+            'type': 'subscription_expiring'
+          });
+        }
       }
 
       // Check if the subscription is expired
@@ -155,6 +169,19 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
         // Update subscription status to deactivated
         await doc.reference.update({'status': 'deactivated'});
         NotificationUtils.createDeactivationNotification();
+
+        // Create notification in Firestore
+        final userId = FirebaseAuth.instance.currentUser?.uid;
+        if (userId != null) {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'user_id': userId,
+            'message':
+            'Your subscription has expired. Please renew to continue enjoying our services.',
+            'created_at': Timestamp.now(),
+            'read': false,
+            'type': 'subscription_expired'
+          });
+        }
       }
     }
 
@@ -275,9 +302,20 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
   }
 
   Widget _buildSubscriptionPickups() {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      return Center(
+        child: Text(
+          'Please login to view your pickups',
+          style: GoogleFonts.poppins(),
+        ),
+      );
+    }
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('subscription_details')
+          .where('userId', isEqualTo: currentUser.uid)
           .where('status', isEqualTo: 'active')
           .where('payment_status', isEqualTo: 'completed')
           .snapshots(),
@@ -312,9 +350,20 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
   }
 
   Widget _buildSpecialDayPickups() {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      return Center(
+        child: Text(
+          'Please login to view your pickups',
+          style: GoogleFonts.poppins(),
+        ),
+      );
+    }
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('special_day_details')
+          .where('userId', isEqualTo: currentUser.uid)
           .where('status', isEqualTo: 'active')
           .where('payment_status', isEqualTo: 'completed')
           .snapshots(),

@@ -7,6 +7,8 @@ import 'package:flutternew/Features/App/home/upcomingpickup.dart';
 import 'package:flutternew/Features/App/notification/notification.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../Gmap/map.dart';
 import '../market/marketmain.dart';
@@ -83,19 +85,50 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
             style: GoogleFonts.poppins(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: MediaQuery.of(context).size.width * 0.05, // Responsive font size
+              fontSize: MediaQuery.of(context).size.width *
+                  0.05, // Responsive font size
             ),
           ),
           actions: [
-            IconButton(
-              icon: Icon(Icons.notifications, color: Colors.white)
-                  .animate()
-                  .fade()
-                  .scale(delay: 200.ms),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const NotificationsPage()),
-              ),
+            Stack(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.notifications, color: Colors.white)
+                      .animate()
+                      .fade()
+                      .scale(delay: 200.ms),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const NotificationsPage()),
+                  ),
+                ),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('notification')
+                      .where('user_id',
+                          isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                      .where('read', isEqualTo: false)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                      return Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -120,7 +153,8 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -140,84 +174,85 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
 
   Future<bool> _showExitConfirmationDialog(BuildContext context) async {
     return (await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        backgroundColor: Colors.white,
-        title: Column(
-          children: [
-            Icon(
-              Icons.exit_to_app_rounded,
-              color: primaryGreen,
-              size: 48,
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Exit WasteWisePro?',
+            backgroundColor: Colors.white,
+            title: Column(
+              children: [
+                Icon(
+                  Icons.exit_to_app_rounded,
+                  color: primaryGreen,
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Exit WasteWisePro?',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: primaryGreen,
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              'Are you sure you want to exit the app?',
+              textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: primaryGreen,
+                fontSize: 16,
+                color: Colors.grey[600],
               ),
             ),
-          ],
-        ),
-        content: Text(
-          'Are you sure you want to exit the app?',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
-        ),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: Text(
-                    'Cancel',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    backgroundColor: primaryGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: primaryGreen,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Exit',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    'Exit',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
+                ],
               ),
             ],
+            actionsAlignment: MainAxisAlignment.spaceEvenly,
+            actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
           ),
-        ],
-        actionsAlignment: MainAxisAlignment.spaceEvenly,
-        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      ),
-    )) ?? false;
+        )) ??
+        false;
   }
 
   Widget _buildNavItem(IconData icon, String label, int index) {
@@ -230,7 +265,8 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+          color:
+              isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -246,7 +282,8 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
               label,
               style: GoogleFonts.poppins(
                 color: Colors.white,
-                fontSize: MediaQuery.of(context).size.width * 0.03, // Responsive font size
+                fontSize: MediaQuery.of(context).size.width *
+                    0.03, // Responsive font size
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -337,7 +374,8 @@ class _HomeContentState extends State<HomeContent> {
     return Stack(
       children: [
         Container(
-          height: MediaQuery.of(context).size.height * 0.25, // Responsive height
+          height:
+              MediaQuery.of(context).size.height * 0.25, // Responsive height
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
@@ -394,7 +432,8 @@ class _HomeContentState extends State<HomeContent> {
         Text(
           'Welcome to WasteWisePro',
           style: GoogleFonts.poppins(
-            fontSize: MediaQuery.of(context).size.width * 0.06, // Responsive font size
+            fontSize: MediaQuery.of(context).size.width *
+                0.06, // Responsive font size
             fontWeight: FontWeight.bold,
             color: primaryGreen,
           ),
@@ -403,7 +442,8 @@ class _HomeContentState extends State<HomeContent> {
         Text(
           'Make a difference by recycling with our easy pickup service.',
           style: GoogleFonts.poppins(
-            fontSize: MediaQuery.of(context).size.width * 0.04, // Responsive font size
+            fontSize: MediaQuery.of(context).size.width *
+                0.04, // Responsive font size
             color: Colors.grey[600],
           ),
         ),
@@ -420,7 +460,8 @@ class _HomeContentState extends State<HomeContent> {
             title: 'Subscriptions',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => SubscriptionDetailsPage()),
+              MaterialPageRoute(
+                  builder: (context) => SubscriptionDetailsPage()),
             ),
           ),
         ),
@@ -501,7 +542,8 @@ class _HomeContentState extends State<HomeContent> {
           Text(
             'Recent Updates',
             style: GoogleFonts.poppins(
-              fontSize: MediaQuery.of(context).size.width * 0.05, // Responsive font size
+              fontSize: MediaQuery.of(context).size.width *
+                  0.05, // Responsive font size
               fontWeight: FontWeight.bold,
               color: primaryGreen,
             ),
@@ -510,7 +552,7 @@ class _HomeContentState extends State<HomeContent> {
           _buildUpdateCard(
             icon: Icons.schedule,
             title: 'Upcoming Pick Up',
-            subtitle: 'Today, 10:00 AM',
+            subtitle: 'Upcoming Pickup',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => UpcomingPickUpPage()),

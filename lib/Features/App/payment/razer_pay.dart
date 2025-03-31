@@ -105,6 +105,15 @@ class _RazorpayScreenState extends State<RazorpayScreen> {
           'details': details,
         });
       }
+
+      // Create notification for successful payment
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'user_id': userId,
+        'message': 'Payment successful! Your pickup has been scheduled.',
+        'created_at': Timestamp.now(),
+        'read': false,
+        'type': 'payment_success'
+      });
     } catch (e) {
       debugPrint('Error storing payment history: $e');
     }

@@ -1098,6 +1098,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
           .doc(orderId)
           .set(orderDetails);
 
+      // Create order placed notification
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'user_id': FirebaseAuth.instance.currentUser?.uid,
+        'message':
+        'Your order #$orderId has been placed successfully. Expected delivery by $formattedDeliveryDate.',
+        'created_at': Timestamp.now(),
+        'read': false,
+        'type': 'order_placed'
+      });
+
       // For COD, create payment history entry
       if (_selectedPaymentMethod == 'cod') {
         final paymentId = DateTime.now().millisecondsSinceEpoch.toString();

@@ -7,6 +7,7 @@ import 'package:flutternew/Features/App/payment/razer_pay.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutternew/Features/App/home/subscription.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SpecialDaysPage extends StatefulWidget {
   const SpecialDaysPage({super.key});
@@ -149,7 +150,10 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
   void _handlePaymentSuccess() async {
     try {
       // Get current user
-      final user = FirebaseAuth.instance.currentUser;
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception("User not authenticated");
+      }
 
       // Parse name and mobile from pickup address
       List<String> addressParts = pickupAddress!.split('\n');
@@ -158,9 +162,18 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
       String mobile = contactInfo[1];
       String address = addressParts[1];
 
+      // Create notification for successful payment
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'user_id': currentUser.uid,
+        'message': 'Payment successful! Your pickup has been scheduled.',
+        'created_at': Timestamp.now(),
+        'read': false,
+        'type': 'payment_success'
+      });
+
       // Prepare the data to be stored in Firestore
       Map<String, dynamic> specialDayData = {
-        'userId': user?.uid,
+        'userId': currentUser.uid,
         'timestamp': FieldValue.serverTimestamp(),
         'pickup_date': selectedDate,
         'pickup_time': selectedTime?.format(context),
@@ -173,19 +186,20 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
         'payment_status': 'completed',
         'status': 'active',
         'created_at': FieldValue.serverTimestamp(),
+        'created_by': currentUser.uid,
+        'updated_at': FieldValue.serverTimestamp(),
+        'updated_by': currentUser.uid,
       };
 
       // Use a transaction to ensure both documents are created
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         // Create a document reference for special day details
-        DocumentReference specialDayRef = FirebaseFirestore.instance
-            .collection('special_day_details')
-            .doc(); // Generate a new document ID
+        DocumentReference specialDayRef =
+        FirebaseFirestore.instance.collection('special_day_details').doc();
 
         // Create a document reference for upcoming pickup
-        DocumentReference pickupRef = FirebaseFirestore.instance
-            .collection('upcoming_pickups')
-            .doc(); // Generate a new document ID
+        DocumentReference pickupRef =
+        FirebaseFirestore.instance.collection('upcoming_pickups').doc();
 
         // Add waste-specific or scrap-specific data
         if (isWasteSelected) {
@@ -232,7 +246,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
           // Set data for upcoming pickup
           transaction.set(pickupRef, {
             'special_day_id': specialDayRef.id,
-            'userId': user?.uid,
+            'userId': currentUser.uid,
             'customer_fullname': fullname,
             'customer_mobile': mobile,
             'pickup_date': Timestamp.fromDate(selectedDate!),
@@ -242,6 +256,9 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
             'pickup_address': address,
             'status': 'active',
             'created_at': FieldValue.serverTimestamp(),
+            'created_by': currentUser.uid,
+            'updated_at': FieldValue.serverTimestamp(),
+            'updated_by': currentUser.uid,
             'household_waste': selectedHouseholdWaste,
             'commercial_waste': selectedCommercialWaste,
             'household_waste_weights': householdWasteWeights,
@@ -266,7 +283,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
           // Set data for upcoming pickup
           transaction.set(pickupRef, {
             'special_day_id': specialDayRef.id,
-            'userId': user?.uid,
+            'userId': currentUser.uid,
             'customer_fullname': fullname,
             'customer_mobile': mobile,
             'pickup_date': Timestamp.fromDate(selectedDate!),
@@ -276,6 +293,9 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
             'pickup_address': address,
             'status': 'active',
             'created_at': FieldValue.serverTimestamp(),
+            'created_by': currentUser.uid,
+            'updated_at': FieldValue.serverTimestamp(),
+            'updated_by': currentUser.uid,
             'scrap_types': scrapTypes,
             'scrap_weights': scrapWeights
           });

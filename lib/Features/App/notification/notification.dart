@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({Key? key}) : super(key: key);
@@ -20,7 +22,126 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   void initState() {
     super.initState();
+    _initializeNotifications();
     _loadNotifications();
+    _listenToNewNotifications();
+  }
+
+  void _initializeNotifications() {
+    AwesomeNotifications().initialize(
+      null,
+      [
+        NotificationChannel(
+          channelKey: 'pickup_reminders',
+          channelName: 'Pickup Reminders',
+          channelDescription: 'Notifications for scheduled pickups',
+          defaultColor: primaryColor,
+          importance: NotificationImportance.High,
+          enableVibration: true,
+        ),
+        NotificationChannel(
+          channelKey: 'order_updates',
+          channelName: 'Order Updates',
+          channelDescription: 'Updates about your orders',
+          defaultColor: primaryColor,
+          importance: NotificationImportance.High,
+          enableVibration: true,
+        ),
+        NotificationChannel(
+          channelKey: 'promotional',
+          channelName: 'Promotions',
+          channelDescription: 'Special offers and promotions',
+          defaultColor: primaryColor,
+          importance: NotificationImportance.Default,
+          enableVibration: false,
+        ),
+        NotificationChannel(
+          channelKey: 'news_tips',
+          channelName: 'News & Tips',
+          channelDescription: 'Waste management tips and news',
+          defaultColor: primaryColor,
+          importance: NotificationImportance.Low,
+          enableVibration: false,
+        ),
+      ],
+    );
+
+    // Request notification permissions
+    AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
+      if (!isAllowed) {
+        AwesomeNotifications().requestPermissionToSendNotifications();
+      }
+    });
+  }
+
+  void _listenToNewNotifications() {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    FirebaseFirestore.instance
+        .collection('notifications')
+        .where('user_id', isEqualTo: userId)
+        .where('read', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          _showNotification(
+            change.doc.data()?['message'] ?? 'New notification',
+            change.doc.id,
+          );
+        }
+      }
+    });
+  }
+
+  Future<void> _showNotification(String message, String notificationId) async {
+    // Determine the notification type from the message or metadata
+    String channelKey = 'order_updates'; // default channel
+
+    // Simple message content analysis to determine the channel
+    if (message.toLowerCase().contains('pickup') ||
+        message.toLowerCase().contains('schedule')) {
+      channelKey = 'pickup_reminders';
+    } else if (message.toLowerCase().contains('offer') ||
+        message.toLowerCase().contains('discount')) {
+      channelKey = 'promotional';
+    } else if (message.toLowerCase().contains('tip') ||
+        message.toLowerCase().contains('news')) {
+      channelKey = 'news_tips';
+    }
+
+    // Check if the channel is enabled in preferences
+    final prefs = await SharedPreferences.getInstance();
+    bool isEnabled = true;
+
+    switch (channelKey) {
+      case 'pickup_reminders':
+        isEnabled = prefs.getBool('pickup_reminders') ?? true;
+        break;
+      case 'order_updates':
+        isEnabled = prefs.getBool('order_updates') ?? true;
+        break;
+      case 'promotional':
+        isEnabled = prefs.getBool('promotional_notifications') ?? false;
+        break;
+      case 'news_tips':
+        isEnabled = prefs.getBool('news_and_tips') ?? true;
+        break;
+    }
+
+    if (isEnabled) {
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+          channelKey: channelKey,
+          title: 'New Notification',
+          body: message,
+          notificationLayout: NotificationLayout.Default,
+          payload: {'notification_id': notificationId},
+        ),
+      );
+    }
   }
 
   Future<void> _loadNotifications() async {
@@ -86,7 +207,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
           .update({'read': true});
 
       setState(() {
-        final index = notifications.indexWhere((n) => n['id'] == notificationId);
+        final index =
+        notifications.indexWhere((n) => n['id'] == notificationId);
         if (index != -1) {
           notifications[index]['read'] = true;
         }
@@ -310,7 +432,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     Text(
                       message,
                       style: GoogleFonts.poppins(
-                        fontWeight: isRead ? FontWeight.normal : FontWeight.w500,
+                        fontWeight:
+                        isRead ? FontWeight.normal : FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 4),

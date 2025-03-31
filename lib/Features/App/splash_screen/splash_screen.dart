@@ -76,13 +76,14 @@ class _SplashScreenState extends State<SplashScreen>
       Navigator.pushAndRemoveUntil(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => widget.child!,
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              widget.child!,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
           transitionDuration: const Duration(milliseconds: 800),
         ),
-            (route) => false,
+        (route) => false,
       );
     });
   }

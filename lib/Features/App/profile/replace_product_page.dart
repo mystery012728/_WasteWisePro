@@ -69,6 +69,16 @@ class _ReplaceProductPageState extends State<ReplaceProductPage> {
       // Add return request to collection
       await _firestore.collection('return_requests').add(returnRequest);
 
+      // Create return request notification
+      await _firestore.collection('notifications').add({
+        'user_id': widget.orderDetails['userId'],
+        'message':
+        'Your return request for order #${widget.orderDetails['orderId']} has been submitted. Your replacement order will be delivered by $formattedDeliveryDate.',
+        'created_at': Timestamp.now(),
+        'read': false,
+        'type': 'return_request'
+      });
+
       // Create a new order in the orders collection
       final newOrder = {
         ...widget.orderDetails,
@@ -88,6 +98,16 @@ class _ReplaceProductPageState extends State<ReplaceProductPage> {
           .collection('orders')
           .doc(newOrder['orderId'])
           .set(newOrder);
+
+      // Create replacement order notification
+      await _firestore.collection('notifications').add({
+        'user_id': widget.orderDetails['userId'],
+        'message':
+        'Your replacement order #${newOrder['orderId']} has been created and is being processed. Expected delivery by $formattedDeliveryDate.',
+        'created_at': Timestamp.now(),
+        'read': false,
+        'type': 'replacement_order'
+      });
 
       // Delete from successful_orders since it's now being processed again
       await _firestore

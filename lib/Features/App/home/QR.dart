@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -103,6 +105,16 @@ class _ResultPageState extends State<ResultPage> {
         'subscription_type': subscriptionData!['subscription_type'],
         'missed_at': DateTime.now(),
         'status': 'missed'
+      });
+
+      // Create missed pickup notification
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'user_id': subscriptionData!['customer_id'],
+        'message':
+        'Your scheduled pickup for today at ${subscriptionData!['pickup_time']} was missed. Please contact support for assistance.',
+        'created_at': Timestamp.now(),
+        'read': false,
+        'type': 'pickup_missed'
       });
 
       // Update UI to show missed status
@@ -256,6 +268,16 @@ class _ResultPageState extends State<ResultPage> {
           'waste_type': specialDay['type'],
           'missed_at': Timestamp.now(),
           'status': 'missed'
+        });
+
+        // Create missed special day pickup notification
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'user_id': specialDay['userId'],
+          'message':
+          'Your special ${specialDay['type']} pickup scheduled for ${specialDay['pickup_time']} was missed. Please contact support for assistance.',
+          'created_at': Timestamp.now(),
+          'read': false,
+          'type': 'special_pickup_missed'
         });
 
         // Update special day status to inactive
@@ -586,6 +608,18 @@ class _ResultPageState extends State<ResultPage> {
                                       'commercial_waste_types':
                                       commercialWasteTypes,
                                       'status': 'completed'
+                                    });
+
+                                    // Create successful pickup notification
+                                    await FirebaseFirestore.instance
+                                        .collection('notifications')
+                                        .add({
+                                      'user_id': subscriptionData!['customer_id'],
+                                      'message':
+                                      'Your waste pickup has been completed successfully. Thank you for using our service!',
+                                      'created_at': Timestamp.now(),
+                                      'read': false,
+                                      'type': 'pickup_completed'
                                     });
 
                                     // Add to upcoming pickups collection for next pickup
@@ -1064,6 +1098,18 @@ class _ResultPageState extends State<ResultPage> {
                               'scrap_weights': scrapWeights,
                               'status': 'completed',
                               'completed_at': Timestamp.now()
+                            });
+
+                            // Create special day pickup notification
+                            await FirebaseFirestore.instance
+                                .collection('notifications')
+                                .add({
+                              'user_id': specialDayData['userId'],
+                              'message':
+                              'Your special ${specialDayData['type']} pickup has been completed successfully. Thank you for using our service!',
+                              'created_at': Timestamp.now(),
+                              'read': false,
+                              'type': 'special_pickup_completed'
                             });
 
                             // Update special day status to inactive
@@ -1593,6 +1639,141 @@ class _QRScannerPageState extends State<QRScannerPage> {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class QRCodePage extends StatefulWidget {
+  const QRCodePage({Key? key}) : super(key: key);
+
+  @override
+  State<QRCodePage> createState() => _QRCodePageState();
+}
+
+class _QRCodePageState extends State<QRCodePage> {
+  final Color primaryGreen = const Color(0xFF2E7D32);
+  String? qrData;
+
+  @override
+  void initState() {
+    super.initState();
+    _generateQRData();
+  }
+
+  Future<void> _generateQRData() async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      return;
+    }
+
+    try {
+      // Get user's active subscription
+      final subscriptionSnapshot = await FirebaseFirestore.instance
+          .collection('subscription_details')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('status', isEqualTo: 'active')
+          .get();
+
+      // Get user's special day pickups
+      final specialDaySnapshot = await FirebaseFirestore.instance
+          .collection('special_day_details')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('status', isEqualTo: 'active')
+          .get();
+
+      // Create QR data
+      Map<String, dynamic> qrInfo = {
+        'userId': currentUser.uid,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'subscriptionId': subscriptionSnapshot.docs.isNotEmpty
+            ? subscriptionSnapshot.docs.first.id
+            : null,
+        'specialDayId': specialDaySnapshot.docs.isNotEmpty
+            ? specialDaySnapshot.docs.first.id
+            : null,
+      };
+
+      // Store QR data in Firestore
+      final qrDoc =
+      await FirebaseFirestore.instance.collection('qr_codes').add({
+        ...qrInfo,
+        'created_at': FieldValue.serverTimestamp(),
+        'created_by': currentUser.uid,
+        'updated_at': FieldValue.serverTimestamp(),
+        'updated_by': currentUser.uid,
+        'status': 'active'
+      });
+
+      setState(() {
+        qrData = qrDoc.id;
+      });
+    } catch (e) {
+      print('Error generating QR data: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'QR Code',
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: primaryGreen,
+        elevation: 0,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (qrData != null)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      spreadRadius: 5,
+                      blurRadius: 7,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: QrImageView(
+                  data: qrData!,
+                  version: QrVersions.auto,
+                  size: 200.0,
+                  backgroundColor: Colors.white,
+                ),
+              )
+            else
+              const CircularProgressIndicator(),
+            const SizedBox(height: 20),
+            Text(
+              'Show this QR code to our pickup staff',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Valid for today only',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

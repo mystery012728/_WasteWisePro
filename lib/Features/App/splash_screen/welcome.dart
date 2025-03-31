@@ -33,17 +33,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   List<Map<String, String>> onboardingData = [
     {
       "title": "Turn Waste into Worth",
-      "description": "Start your journey towards a sustainable future with our innovative recycling solutions.",
+      "description":
+          "Start your journey towards a sustainable future with our innovative recycling solutions.",
       "gif": "images/recycle.gif",
     },
     {
       "title": "Smart Pickup Service",
-      "description": "Schedule waste collection that adapts to your lifestyle with AI-powered optimization.",
+      "description":
+          "Schedule waste collection that adapts to your lifestyle with AI-powered optimization.",
       "gif": "images/map.gif",
     },
     {
       "title": "Eco-Friendly Navigation",
-      "description": "Find the nearest recycling points with our intelligent mapping system.",
+      "description":
+          "Find the nearest recycling points with our intelligent mapping system.",
       "gif": "images/navigation.gif",
     },
   ];
@@ -156,7 +159,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
                 // Navigation Buttons
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 40, left: 20, right: 20),
+                  padding:
+                      const EdgeInsets.only(bottom: 40, left: 20, right: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -211,20 +215,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         gradient: isOutlined
             ? null
             : LinearGradient(
-          colors: [Colors.green.shade400, Colors.green.shade600],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+                colors: [Colors.green.shade400, Colors.green.shade600],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
         borderRadius: BorderRadius.circular(25),
         boxShadow: isOutlined
             ? []
             : [
-          BoxShadow(
-            color: Colors.green.withOpacity(0.3),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
         border: isOutlined
             ? Border.all(color: Colors.green.shade600, width: 2)
             : null,
@@ -244,7 +248,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
         ),
       ),
-    ).animate(onPlay: (controller) => controller.repeat())
+    )
+        .animate(onPlay: (controller) => controller.repeat())
         .shimmer(duration: Duration(seconds: 3), color: Colors.white24);
   }
 }
@@ -285,12 +290,11 @@ class OnboardingContent extends StatelessWidget {
                 fit: BoxFit.cover,
               ),
             ),
-          ).animate()
+          )
+              .animate()
               .fadeIn(duration: Duration(milliseconds: 600))
               .scale(delay: 200.ms),
-
           SizedBox(height: 40),
-
           Text(
             title,
             textAlign: TextAlign.center,
@@ -299,12 +303,11 @@ class OnboardingContent extends StatelessWidget {
               fontWeight: FontWeight.bold,
               color: Colors.green.shade800,
             ),
-          ).animate()
+          )
+              .animate()
               .fadeIn(duration: Duration(milliseconds: 600))
               .slideY(begin: 0.3, end: 0),
-
           SizedBox(height: 16),
-
           Text(
             description,
             textAlign: TextAlign.center,
@@ -313,7 +316,8 @@ class OnboardingContent extends StatelessWidget {
               color: Colors.grey[600],
               height: 1.5,
             ),
-          ).animate()
+          )
+              .animate()
               .fadeIn(duration: Duration(milliseconds: 800))
               .slideY(begin: 0.3, end: 0),
         ],
