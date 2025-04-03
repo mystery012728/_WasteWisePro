@@ -33,11 +33,14 @@ class _ResultPageState extends State<ResultPage> {
   bool isLoading = true;
   Map<String, dynamic>? subscriptionData;
   List<Map<String, dynamic>> specialDaysList = [];
+  List<Map<String, dynamic>> scrapDetailsList = []; // Added for scrap details
   int currentSpecialDayIndex = 0;
+  int currentScrapDetailsIndex = 0; // Added for scrap details
   bool isSubscriptionCancelled = false;
   bool isPickupMissed = false;
   Map<String, TextEditingController> weightControllers = {};
   final PageController _specialDaysPageController = PageController();
+  final PageController _scrapDetailsPageController = PageController(); // Added for scrap details
   Map<String, double> householdWeights = {};
   Map<String, double> commercialWeights = {};
   Map<String, double> scrapWeights = {};
@@ -55,6 +58,7 @@ class _ResultPageState extends State<ResultPage> {
   void dispose() {
     weightControllers.forEach((_, controller) => controller.dispose());
     _specialDaysPageController.dispose();
+    _scrapDetailsPageController.dispose(); // Added for scrap details
     _enableScanning(); // Re-enable scanning when leaving the page
     super.dispose();
   }
@@ -114,7 +118,7 @@ class _ResultPageState extends State<ResultPage> {
       await FirebaseFirestore.instance.collection('notifications').add({
         'user_id': subscriptionData!['customer_id'],
         'message':
-            'Your scheduled pickup for today at ${subscriptionData!['pickup_time']} was missed. Please contact support for assistance.',
+        'Your scheduled pickup for today at ${subscriptionData!['pickup_time']} was missed. Please contact support for assistance.',
         'created_at': Timestamp.now(),
         'read': false,
         'type': 'pickup_missed'
@@ -143,6 +147,12 @@ class _ResultPageState extends State<ResultPage> {
       // Fetch special day details
       final specialDaySnapshot = await FirebaseFirestore.instance
           .collection('special_day_details')
+          .where('status', isEqualTo: 'active')
+          .get();
+
+      // Fetch scrap details
+      final scrapDetailsSnapshot = await FirebaseFirestore.instance
+          .collection('scrap_details')
           .where('status', isEqualTo: 'active')
           .get();
 
@@ -224,6 +234,29 @@ class _ResultPageState extends State<ResultPage> {
         });
       }
 
+      // Process scrap details
+      if (scrapDetailsSnapshot.docs.isNotEmpty) {
+        List<Map<String, dynamic>> scrapDetails = [];
+
+        for (var doc in scrapDetailsSnapshot.docs) {
+          final data = doc.data();
+          data['id'] = doc.id;
+
+          // Initialize weight controllers for scrap types
+          if (data['scrap_types'] != null) {
+            (data['scrap_types'] as List<dynamic>).forEach((type) {
+              weightControllers['scrap_detail_$type'] = TextEditingController();
+            });
+          }
+
+          scrapDetails.add(data);
+        }
+
+        setState(() {
+          scrapDetailsList = scrapDetails;
+        });
+      }
+
       setState(() {
         isLoading = false;
       });
@@ -277,7 +310,7 @@ class _ResultPageState extends State<ResultPage> {
         await FirebaseFirestore.instance.collection('notifications').add({
           'user_id': specialDay['userId'],
           'message':
-              'Your special ${specialDay['type']} pickup scheduled for ${specialDay['pickup_time']} was missed. Please contact support for assistance.',
+          'Your special ${specialDay['type']} pickup scheduled for ${specialDay['pickup_time']} was missed. Please contact support for assistance.',
           'created_at': Timestamp.now(),
           'read': false,
           'type': 'special_pickup_missed'
@@ -290,6 +323,68 @@ class _ResultPageState extends State<ResultPage> {
             .update({'status': 'inactive', 'missed_at': Timestamp.now()});
       }
     }
+
+    // Check scrap details pickups
+    for (var scrapDetail in scrapDetailsList) {
+      final pickupTime = scrapDetail['pickup_time'] as String;
+      if (!_isWithinPickupWindow(pickupTime)) {
+        // Add to missed pickups collection
+        await FirebaseFirestore.instance.collection('missed_pickups').add({
+          'scrap_details_id': scrapDetail['id'],
+          'customer_id': scrapDetail['userId'],
+          'scheduled_date': scrapDetail['pickup_date'],
+          'scheduled_time': scrapDetail['pickup_time'],
+          'type': 'scrap',
+          'waste_type': 'scrap',
+          'missed_at': Timestamp.now(),
+          'status': 'missed'
+        });
+
+        // Create missed scrap pickup notification
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'user_id': scrapDetail['userId'],
+          'message':
+          'Your scrap pickup scheduled for ${scrapDetail['pickup_time']} was missed. Please contact support for assistance.',
+          'created_at': Timestamp.now(),
+          'read': false,
+          'type': 'scrap_pickup_missed'
+        });
+
+        // Update scrap details status to inactive
+        await FirebaseFirestore.instance
+            .collection('scrap_details')
+            .doc(scrapDetail['id'])
+            .update({'status': 'inactive', 'missed_at': Timestamp.now()});
+      }
+    }
+  }
+
+  double _calculateTotalScrapPrice(Map<String, dynamic> specialDayData) {
+    double totalPrice = 0.0;
+    if (specialDayData['scrap_types'] != null && specialDayData['scrap_prices'] != null) {
+      for (var type in specialDayData['scrap_types']) {
+        final controllerKey = 'scrap_$type';
+        if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
+          final weight = double.parse(weightControllers[controllerKey]!.text);
+          final price = specialDayData['scrap_prices'][type] ?? 0.0;
+          totalPrice += weight * price;
+        }
+      }
+    }
+    return totalPrice;
+  }
+
+  double _calculateTotalScrapWeight(Map<String, dynamic> specialDayData) {
+    double totalWeight = 0.0;
+    if (specialDayData['scrap_types'] != null) {
+      for (var type in specialDayData['scrap_types']) {
+        final controllerKey = 'scrap_$type';
+        if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
+          totalWeight += double.parse(weightControllers[controllerKey]!.text);
+        }
+      }
+    }
+    return totalWeight;
   }
 
   @override
@@ -318,26 +413,30 @@ class _ResultPageState extends State<ResultPage> {
       body: isLoading
           ? Center(child: CircularProgressIndicator(color: primaryGreen))
           : SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Padding(
+              padding: const EdgeInsets.all(20),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (subscriptionData != null) _buildSubscriptionCard(),
-                        if (specialDaysList.isNotEmpty) ...[
-                          SizedBox(height: 20),
-                          _buildSpecialDaysSection(),
-                        ],
-                        SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
+                  if (subscriptionData != null) _buildSubscriptionCard(),
+                  if (specialDaysList.isNotEmpty) ...[
+                    SizedBox(height: 20),
+                    _buildSpecialDaysSection(),
+                  ],
+                  if (scrapDetailsList.isNotEmpty) ...[
+                    SizedBox(height: 20),
+                    _buildScrapDetailsSection(),
+                  ],
+                  SizedBox(height: 20),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -391,9 +490,9 @@ class _ResultPageState extends State<ResultPage> {
     final now = DateTime.now();
 
     List<String> householdWasteTypes =
-        List<String>.from(subscriptionData!['household_waste_types'] ?? []);
+    List<String>.from(subscriptionData!['household_waste_types'] ?? []);
     List<String> commercialWasteTypes =
-        List<String>.from(subscriptionData!['commercial_waste_types'] ?? []);
+    List<String>.from(subscriptionData!['commercial_waste_types'] ?? []);
 
     return Container(
       decoration: BoxDecoration(
@@ -513,189 +612,201 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                   )
                 else ...[
-                  if (!isSubscriptionCancelled && !isPickupMissed) ...[
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (householdWasteTypes.isNotEmpty) ...[
-                            Text(
-                              'Household Waste',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: primaryGreen,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            ...householdWasteTypes.map((type) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: TextField(
-                                    controller: weightControllers[type],
-                                    keyboardType:
-                                        TextInputType.numberWithOptions(
-                                            decimal: true),
-                                    decoration: InputDecoration(
-                                      labelText: 'Enter $type weight (kg)',
-                                      hintText: 'e.g. 5.5',
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      prefixIcon: Icon(Icons.scale,
-                                          color: primaryGreen),
-                                    ),
-                                  ),
-                                )),
-                          ],
-                          if (commercialWasteTypes.isNotEmpty) ...[
-                            SizedBox(height: 16),
-                            Text(
-                              'Commercial Waste',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: primaryGreen,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            ...commercialWasteTypes.map((type) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: TextField(
-                                    controller: weightControllers[type],
-                                    keyboardType:
-                                        TextInputType.numberWithOptions(
-                                            decimal: true),
-                                    decoration: InputDecoration(
-                                      labelText: 'Enter $type weight (kg)',
-                                      hintText: 'e.g. 5.5',
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      prefixIcon: Icon(Icons.scale,
-                                          color: primaryGreen),
-                                    ),
-                                  ),
-                                )),
-                          ],
-                          SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                Map<String, double> weights = {};
-                                // Collect weights without validation
-                                weightControllers.forEach((type, controller) {
-                                  if (controller.text.isNotEmpty) {
-                                    weights[type] =
-                                        double.parse(controller.text);
-                                  }
-                                });
-
-                                try {
-                                  // Add to successful pickups collection
-                                  await FirebaseFirestore.instance
-                                      .collection('successful_pickups')
-                                      .add({
-                                    'subscription_id': subscriptionData!['id'],
-                                    'customer_id':
-                                        subscriptionData!['customer_id'],
-                                    'pickup_date': Timestamp.now(),
-                                    'scheduled_time':
-                                        subscriptionData!['pickup_time'],
-                                    'subscription_type':
-                                        subscriptionData!['subscription_type'],
-                                    'waste_weights': weights,
-                                    'household_waste_types':
-                                        householdWasteTypes,
-                                    'commercial_waste_types':
-                                        commercialWasteTypes,
-                                    'status': 'completed'
-                                  });
-
-                                  // Create successful pickup notification
-                                  await FirebaseFirestore.instance
-                                      .collection('notifications')
-                                      .add({
-                                    'user_id': subscriptionData!['customer_id'],
-                                    'message':
-                                        'Your waste pickup has been completed successfully. Thank you for using our service!',
-                                    'created_at': Timestamp.now(),
-                                    'read': false,
-                                    'type': 'pickup_completed'
-                                  });
-
-                                  // Add to upcoming pickups collection for next pickup
-                                  final nextPickupDate =
-                                      DateTime.now().add(Duration(days: 1));
-                                  await FirebaseFirestore.instance
-                                      .collection('upcoming_pickups')
-                                      .add({
-                                    'subscription_id': subscriptionData!['id'],
-                                    'customer_id':
-                                        subscriptionData!['customer_id'],
-                                    'pickup_date':
-                                        Timestamp.fromDate(nextPickupDate),
-                                    'scheduled_time':
-                                        subscriptionData!['pickup_time'],
-                                    'subscription_type':
-                                        subscriptionData!['subscription_type'],
-                                    'pickup_address':
-                                        subscriptionData!['pickup_address'],
-                                    'household_waste_types':
-                                        householdWasteTypes,
-                                    'commercial_waste_types':
-                                        commercialWasteTypes,
-                                    'status': 'pending',
-                                    'type': 'subscription',
-                                    'created_at': Timestamp.now()
-                                  });
-
-                                  // Pickup confirmed successfully
-
-                                  if (mounted) {
-                                    CustomSnackbar.showSuccess(
-                                      context: context,
-                                      message: 'Pickup confirmed successfully!',
-                                    );
-                                  }
-
-                                  // Re-enable scanning
-                                  await _enableScanning();
-                                  Navigator.pop(context);
-                                } catch (e) {
-                                  print('Error confirming pickup: $e');
-                                  if (mounted) {
-                                    CustomSnackbar.showError(
-                                      context: context,
-                                      message:
-                                          'Failed to confirm pickup. Please try again.',
-                                    );
-                                  }
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryGreen,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: Text(
-                                'Confirm Subscription Pickup',
+                    if (!isSubscriptionCancelled && !isPickupMissed) ...[
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (householdWasteTypes.isNotEmpty) ...[
+                              Text(
+                                'Household Waste',
                                 style: GoogleFonts.poppins(
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                                  color: primaryGreen,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              ...householdWasteTypes.map((type) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: TextField(
+                                  controller: weightControllers[type],
+                                  keyboardType:
+                                  TextInputType.numberWithOptions(
+                                      decimal: true),
+                                  decoration: InputDecoration(
+                                    labelText: 'Enter $type weight (kg)',
+                                    hintText: 'e.g. 5.5',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    prefixIcon: Icon(Icons.scale,
+                                        color: primaryGreen),
+                                  ),
+                                  readOnly: true, // Make field read-only
+                                  enabled: false, // Disable the field
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              )),
+                            ],
+                            if (commercialWasteTypes.isNotEmpty) ...[
+                              SizedBox(height: 16),
+                              Text(
+                                'Commercial Waste',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: primaryGreen,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              ...commercialWasteTypes.map((type) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: TextField(
+                                  controller: weightControllers[type],
+                                  keyboardType:
+                                  TextInputType.numberWithOptions(
+                                      decimal: true),
+                                  decoration: InputDecoration(
+                                    labelText: 'Enter $type weight (kg)',
+                                    hintText: 'e.g. 5.5',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    prefixIcon: Icon(Icons.scale,
+                                        color: primaryGreen),
+                                  ),
+                                  readOnly: true, // Make field read-only
+                                  enabled: false, // Disable the field
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              )),
+                            ],
+                            SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  Map<String, double> weights = {};
+                                  // Collect weights without validation
+                                  weightControllers.forEach((type, controller) {
+                                    if (controller.text.isNotEmpty) {
+                                      weights[type] =
+                                          double.parse(controller.text);
+                                    }
+                                  });
+
+                                  try {
+                                    // Add to successful pickups collection
+                                    await FirebaseFirestore.instance
+                                        .collection('successful_pickups')
+                                        .add({
+                                      'subscription_id': subscriptionData!['id'],
+                                      'customer_id':
+                                      subscriptionData!['customer_id'],
+                                      'pickup_date': Timestamp.now(),
+                                      'scheduled_time':
+                                      subscriptionData!['pickup_time'],
+                                      'subscription_type':
+                                      subscriptionData!['subscription_type'],
+                                      'waste_weights': weights,
+                                      'household_waste_types':
+                                      householdWasteTypes,
+                                      'commercial_waste_types':
+                                      commercialWasteTypes,
+                                      'status': 'completed'
+                                    });
+
+                                    // Create successful pickup notification
+                                    await FirebaseFirestore.instance
+                                        .collection('notifications')
+                                        .add({
+                                      'user_id': subscriptionData!['customer_id'],
+                                      'message':
+                                      'Your waste pickup has been completed successfully. Thank you for using our service!',
+                                      'created_at': Timestamp.now(),
+                                      'read': false,
+                                      'type': 'pickup_completed'
+                                    });
+
+                                    // Add to upcoming pickups collection for next pickup
+                                    final nextPickupDate =
+                                    DateTime.now().add(Duration(days: 1));
+                                    await FirebaseFirestore.instance
+                                        .collection('upcoming_pickups')
+                                        .add({
+                                      'subscription_id': subscriptionData!['id'],
+                                      'customer_id':
+                                      subscriptionData!['customer_id'],
+                                      'pickup_date':
+                                      Timestamp.fromDate(nextPickupDate),
+                                      'scheduled_time':
+                                      subscriptionData!['pickup_time'],
+                                      'subscription_type':
+                                      subscriptionData!['subscription_type'],
+                                      'pickup_address':
+                                      subscriptionData!['pickup_address'],
+                                      'household_waste_types':
+                                      householdWasteTypes,
+                                      'commercial_waste_types':
+                                      commercialWasteTypes,
+                                      'status': 'pending',
+                                      'type': 'subscription',
+                                      'created_at': Timestamp.now()
+                                    });
+
+                                    // Pickup confirmed successfully
+
+                                    if (mounted) {
+                                      CustomSnackbar.showSuccess(
+                                        context: context,
+                                        message: 'Pickup confirmed successfully!',
+                                      );
+                                    }
+
+                                    // Re-enable scanning
+                                    await _enableScanning();
+                                    Navigator.pop(context);
+                                  } catch (e) {
+                                    print('Error confirming pickup: $e');
+                                    if (mounted) {
+                                      CustomSnackbar.showError(
+                                        context: context,
+                                        message:
+                                        'Failed to confirm pickup. Please try again.',
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryGreen,
+                                  padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Confirm Subscription Pickup',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
               ],
             ),
           ),
@@ -743,11 +854,11 @@ class _ResultPageState extends State<ResultPage> {
                           icon: Icon(Icons.arrow_back_ios, size: 16),
                           onPressed: currentSpecialDayIndex > 0
                               ? () {
-                                  _specialDaysPageController.previousPage(
-                                    duration: Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
-                                  );
-                                }
+                            _specialDaysPageController.previousPage(
+                              duration: Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
                               : null,
                           color: currentSpecialDayIndex > 0
                               ? primaryGreen
@@ -756,16 +867,16 @@ class _ResultPageState extends State<ResultPage> {
                         IconButton(
                           icon: Icon(Icons.arrow_forward_ios, size: 16),
                           onPressed: currentSpecialDayIndex <
-                                  specialDaysList.length - 1
+                              specialDaysList.length - 1
                               ? () {
-                                  _specialDaysPageController.nextPage(
-                                    duration: Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
-                                  );
-                                }
+                            _specialDaysPageController.nextPage(
+                              duration: Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
                               : null,
                           color: currentSpecialDayIndex <
-                                  specialDaysList.length - 1
+                              specialDaysList.length - 1
                               ? primaryGreen
                               : Colors.grey[400],
                         ),
@@ -789,6 +900,98 @@ class _ResultPageState extends State<ResultPage> {
             },
             itemBuilder: (context, index) {
               return _buildSpecialDayCard(specialDaysList[index]);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScrapDetailsSection() {
+    if (scrapDetailsList.isEmpty) return SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Scrap Pickups',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: primaryGreen,
+              ),
+            ),
+            if (scrapDetailsList.length > 1)
+              Row(
+                children: [
+                  Text(
+                    '${currentScrapDetailsIndex + 1}/${scrapDetailsList.length}',
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.arrow_back_ios, size: 16),
+                          onPressed: currentScrapDetailsIndex > 0
+                              ? () {
+                            _scrapDetailsPageController.previousPage(
+                              duration: Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                              : null,
+                          color: currentScrapDetailsIndex > 0
+                              ? primaryGreen
+                              : Colors.grey[400],
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.arrow_forward_ios, size: 16),
+                          onPressed: currentScrapDetailsIndex <
+                              scrapDetailsList.length - 1
+                              ? () {
+                            _scrapDetailsPageController.nextPage(
+                              duration: Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                              : null,
+                          color: currentScrapDetailsIndex <
+                              scrapDetailsList.length - 1
+                              ? primaryGreen
+                              : Colors.grey[400],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        SizedBox(height: 10),
+        Container(
+          height: 450, // Fixed height for the PageView
+          child: PageView.builder(
+            controller: _scrapDetailsPageController,
+            itemCount: scrapDetailsList.length,
+            onPageChanged: (index) {
+              setState(() {
+                currentScrapDetailsIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return _buildScrapDetailCard(scrapDetailsList[index]);
             },
           ),
         ),
@@ -891,7 +1094,7 @@ class _ResultPageState extends State<ResultPage> {
                           .map((type) {
                         final controllerKey = 'household_$type';
                         final weight = specialDayData['household_waste_weights']
-                                ?[type] ??
+                        ?[type] ??
                             0.0;
 
                         // Initialize controller if it doesn't exist
@@ -909,15 +1112,21 @@ class _ResultPageState extends State<ResultPage> {
                           child: TextField(
                             controller: weightControllers[controllerKey],
                             keyboardType:
-                                TextInputType.numberWithOptions(decimal: true),
+                            TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
-                              labelText: 'Enter $type weight (kg)',
+                              labelText: '$type weight (kg)',
                               hintText: 'e.g. 5.5',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               prefixIcon:
-                                  Icon(Icons.scale, color: primaryGreen),
+                              Icon(Icons.scale, color: primaryGreen),
+                            ),
+                            readOnly: true, // Make field read-only
+                            enabled: false, // Disable the field
+                            style: GoogleFonts.poppins(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         );
@@ -961,15 +1170,21 @@ class _ResultPageState extends State<ResultPage> {
                           child: TextField(
                             controller: weightControllers[controllerKey],
                             keyboardType:
-                                TextInputType.numberWithOptions(decimal: true),
+                            TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
-                              labelText: 'Enter $type weight (kg)',
+                              labelText: '$type weight (kg)',
                               hintText: 'e.g. 5.5',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               prefixIcon:
-                                  Icon(Icons.scale, color: primaryGreen),
+                              Icon(Icons.scale, color: primaryGreen),
+                            ),
+                            readOnly: true, // Make field read-only
+                            enabled: false, // Disable the field
+                            style: GoogleFonts.poppins(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         );
@@ -992,6 +1207,7 @@ class _ResultPageState extends State<ResultPage> {
                         final controllerKey = 'scrap_$type';
                         final weight =
                             specialDayData['scrap_weights']?[type] ?? 0.0;
+                        final price = specialDayData['scrap_prices']?[type] ?? 0.0;
 
                         // Initialize controller if it doesn't exist
                         weightControllers.putIfAbsent(
@@ -1008,15 +1224,21 @@ class _ResultPageState extends State<ResultPage> {
                           child: TextField(
                             controller: weightControllers[controllerKey],
                             keyboardType:
-                                TextInputType.numberWithOptions(decimal: true),
+                            TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
-                              labelText: 'Enter $type weight (kg)',
+                              labelText: '$type weight (kg)',
                               hintText: 'e.g. 5.5',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               prefixIcon:
-                                  Icon(Icons.scale, color: primaryGreen),
+                              Icon(Icons.scale, color: primaryGreen),
+                            ),
+                            readOnly: true, // Make field read-only
+                            enabled: false, // Disable the field
+                            style: GoogleFonts.poppins(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         );
@@ -1031,55 +1253,6 @@ class _ResultPageState extends State<ResultPage> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () async {
-                          // Collect weights for the current special day
-                          Map<String, double> householdWeights = {};
-                          Map<String, double> commercialWeights = {};
-                          Map<String, double> scrapWeights = {};
-
-                          // Process household waste weights
-                          if (specialDayData['household_waste'] != null) {
-                            for (var type
-                                in specialDayData['household_waste']) {
-                              final controllerKey = 'household_$type';
-                              if (weightControllers[controllerKey]
-                                      ?.text
-                                      .isNotEmpty ??
-                                  false) {
-                                householdWeights[type] = double.parse(
-                                    weightControllers[controllerKey]!.text);
-                              }
-                            }
-                          }
-
-                          // Process commercial waste weights
-                          if (specialDayData['commercial_waste'] != null) {
-                            for (var type
-                                in specialDayData['commercial_waste']) {
-                              final controllerKey = 'commercial_$type';
-                              if (weightControllers[controllerKey]
-                                      ?.text
-                                      .isNotEmpty ??
-                                  false) {
-                                commercialWeights[type] = double.parse(
-                                    weightControllers[controllerKey]!.text);
-                              }
-                            }
-                          }
-
-                          // Process scrap weights
-                          if (specialDayData['scrap_types'] != null) {
-                            for (var type in specialDayData['scrap_types']) {
-                              final controllerKey = 'scrap_$type';
-                              if (weightControllers[controllerKey]
-                                      ?.text
-                                      .isNotEmpty ??
-                                  false) {
-                                scrapWeights[type] = double.parse(
-                                    weightControllers[controllerKey]!.text);
-                              }
-                            }
-                          }
-
                           await _confirmSpecialDayPickup(specialDayData);
                         },
                         style: ElevatedButton.styleFrom(
@@ -1090,7 +1263,221 @@ class _ResultPageState extends State<ResultPage> {
                           ),
                         ),
                         child: Text(
-                          'Confirm Special Day Pickup',
+                          specialDayData['type'] == 'scrap'
+                              ? 'Confirm Scrap Pickup - ₹${_calculateTotalScrapPrice(specialDayData).toStringAsFixed(2)}'
+                              : 'Confirm Special Day Pickup',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.access_time, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Confirm button will be available at the scheduled pickup time: $pickupTime',
+                              style: GoogleFonts.poppins(
+                                color: Colors.orange[800],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScrapDetailCard(Map<String, dynamic> scrapDetailData) {
+    final pickupDate = (scrapDetailData['pickup_date'] as Timestamp).toDate();
+    final pickupTime = scrapDetailData['pickup_time'] as String;
+
+    // Check if we're within the pickup window
+    final isWithinPickupWindow = _isWithinPickupWindow(pickupTime);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'Scrap Pickup',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: primaryGreen,
+              ),
+            ),
+          ),
+          Divider(height: 1),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.recycling,
+                color: primaryGreen,
+              ),
+            ),
+            title: Text(
+              'Scrap Pickup',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 8),
+                Text(
+                  'Date: ${DateFormat('MMM d, yyyy').format(pickupDate)}',
+                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                ),
+                Text(
+                  'Time: $pickupTime',
+                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  scrapDetailData['pickup_address'],
+                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Scrap section
+                  if (scrapDetailData['scrap_types'] != null &&
+                      (scrapDetailData['scrap_types'] as List).isNotEmpty) ...[
+                    Text(
+                      'Scrap Items',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: primaryGreen,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    ...(scrapDetailData['scrap_types'] as List).map((type) {
+                      final controllerKey = 'scrap_detail_$type';
+                      final weight =
+                          scrapDetailData['scrap_weights']?[type] ?? 0.0;
+
+                      // Get price from scrap_prices if available
+                      double price = 0.0;
+                      if (scrapDetailData['scrap_prices'] != null &&
+                          scrapDetailData['scrap_prices'][type] != null) {
+                        price = scrapDetailData['scrap_prices'][type];
+                      } else {
+                        // Default prices if not available
+                        switch (type) {
+                          case 'News Paper':
+                            price = 15;
+                            break;
+                          case 'Office Paper(A3/A4)':
+                            price = 15;
+                            break;
+                          case 'Books':
+                            price = 12;
+                            break;
+                          case 'Cardboard':
+                            price = 8;
+                            break;
+                          case 'Plastic':
+                            price = 10;
+                            break;
+                        }
+                      }
+
+                      // Initialize controller if it doesn't exist
+                      weightControllers.putIfAbsent(
+                          controllerKey, () => TextEditingController());
+
+                      // Set text value if weight is greater than 0
+                      if (weight > 0) {
+                        weightControllers[controllerKey]?.text =
+                            weight.toString();
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: TextField(
+                          controller: weightControllers[controllerKey],
+                          keyboardType:
+                          TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: '$type weight (kg) - ₹$price/kg',
+                            hintText: 'e.g. 5.5',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            prefixIcon:
+                            Icon(Icons.scale, color: primaryGreen),
+                          ),
+                          readOnly: true, // Make field read-only
+                          enabled: false, // Disable the field
+                          style: GoogleFonts.poppins(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
+
+                  SizedBox(height: 16),
+                  // Only show confirm button if within pickup window
+                  if (isWithinPickupWindow)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          await _confirmScrapPickup(scrapDetailData);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryGreen,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          'Confirm Scrap Pickup - ₹${scrapDetailData['total_scrap_price']?.toStringAsFixed(2) ?? "0.00"}',
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -1133,6 +1520,48 @@ class _ResultPageState extends State<ResultPage> {
   Future<void> _confirmSpecialDayPickup(
       Map<String, dynamic> specialDayData) async {
     try {
+      // Calculate total scrap price and weight for scrap pickups
+      double totalScrapPrice = 0.0;
+      double totalScrapWeight = 0.0;
+
+      if (specialDayData['type'] == 'scrap') {
+        totalScrapPrice = _calculateTotalScrapPrice(specialDayData);
+        totalScrapWeight = _calculateTotalScrapWeight(specialDayData);
+      }
+
+      // Process household waste weights
+      if (specialDayData['household_waste'] != null) {
+        for (var type in specialDayData['household_waste']) {
+          final controllerKey = 'household_$type';
+          if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
+            householdWeights[type] = double.parse(
+                weightControllers[controllerKey]!.text);
+          }
+        }
+      }
+
+      // Process commercial waste weights
+      if (specialDayData['commercial_waste'] != null) {
+        for (var type in specialDayData['commercial_waste']) {
+          final controllerKey = 'commercial_$type';
+          if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
+            commercialWeights[type] = double.parse(
+                weightControllers[controllerKey]!.text);
+          }
+        }
+      }
+
+      // Process scrap weights
+      if (specialDayData['scrap_types'] != null) {
+        for (var type in specialDayData['scrap_types']) {
+          final controllerKey = 'scrap_$type';
+          if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
+            scrapWeights[type] = double.parse(
+                weightControllers[controllerKey]!.text);
+          }
+        }
+      }
+
       // Add to successful pickups collection
       await FirebaseFirestore.instance.collection('successful_pickups').add({
         'special_day_id': specialDayData['id'],
@@ -1147,6 +1576,8 @@ class _ResultPageState extends State<ResultPage> {
         'household_waste_weights': householdWeights,
         'commercial_waste_weights': commercialWeights,
         'scrap_weights': scrapWeights,
+        'total_scrap_weight': specialDayData['type'] == 'scrap' ? totalScrapWeight : 0,
+        'total_scrap_price': specialDayData['type'] == 'scrap' ? totalScrapPrice : 0,
         'status': 'completed',
         'completed_at': Timestamp.now()
       });
@@ -1182,6 +1613,80 @@ class _ResultPageState extends State<ResultPage> {
       Navigator.pop(context);
     } catch (e) {
       print('Error confirming special day pickup: $e');
+      if (mounted) {
+        CustomSnackbar.showError(
+          context: context,
+          message: 'Failed to confirm pickup. Please try again.',
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmScrapPickup(Map<String, dynamic> scrapDetailData) async {
+    try {
+      // Process scrap weights
+      Map<String, double> scrapWeights = {};
+      if (scrapDetailData['scrap_types'] != null) {
+        for (var type in scrapDetailData['scrap_types']) {
+          final controllerKey = 'scrap_detail_$type';
+          if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
+            scrapWeights[type] = double.parse(
+                weightControllers[controllerKey]!.text);
+          } else if (scrapDetailData['scrap_weights'] != null &&
+              scrapDetailData['scrap_weights'][type] != null) {
+            // Use the weight from scrap details if controller is empty
+            scrapWeights[type] = scrapDetailData['scrap_weights'][type];
+          }
+        }
+      }
+
+      // Get total scrap weight and price from scrap details
+      double totalScrapWeight = scrapDetailData['total_scrap_weight'] ?? 0.0;
+      double totalScrapPrice = scrapDetailData['total_scrap_price'] ?? 0.0;
+
+      // Add to successful pickups collection
+      await FirebaseFirestore.instance.collection('successful_pickups').add({
+        'scrap_details_id': scrapDetailData['id'],
+        'customer_id': scrapDetailData['userId'],
+        'pickup_date': Timestamp.now(),
+        'scheduled_time': scrapDetailData['pickup_time'],
+        'type': 'scrap',
+        'waste_type': 'scrap',
+        'scrap_types': scrapDetailData['scrap_types'],
+        'scrap_weights': scrapWeights,
+        'total_scrap_weight': totalScrapWeight,
+        'total_scrap_price': totalScrapPrice,
+        'status': 'completed',
+        'completed_at': Timestamp.now()
+      });
+
+      // Create scrap pickup notification
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'user_id': scrapDetailData['userId'],
+        'message': 'Your scrap pickup has been completed successfully. Cash received from pickup man.',
+        'created_at': Timestamp.now(),
+        'read': false,
+        'type': 'scrap_pickup_completed'
+      });
+
+      // Update scrap details status to inactive
+      await FirebaseFirestore.instance
+          .collection('scrap_details')
+          .doc(scrapDetailData['id'])
+          .update({'status': 'inactive', 'completed_at': Timestamp.now()});
+
+      if (mounted) {
+        CustomSnackbar.showSuccess(
+          context: context,
+          message: 'Scrap pickup confirmed successfully! Cash received from pickup man.',
+        );
+      }
+
+      // Re-enable scanning
+      await _enableScanning();
+      Navigator.pop(context);
+    } catch (e) {
+      print('Error confirming scrap pickup: $e');
       if (mounted) {
         CustomSnackbar.showError(
           context: context,
@@ -1268,7 +1773,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
   String? lastScannedValue;
   final Color primaryGreen = const Color(0xFF2E7D32);
   final DraggableScrollableController _dragController =
-      DraggableScrollableController();
+  DraggableScrollableController();
   late SharedPreferences prefs;
   List<String> scanHistory = [];
   bool isScanningEnabled = true;
@@ -1507,7 +2012,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
                                   color: Colors.grey[50],
                                   borderRadius: BorderRadius.circular(12),
                                   border:
-                                      Border.all(color: Colors.grey.shade200),
+                                  Border.all(color: Colors.grey.shade200),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1534,8 +2039,8 @@ class _QRScannerPageState extends State<QRScannerPage> {
                                       final parts = scan.split(' - ');
                                       final date = DateTime.parse(parts[0]);
                                       final formattedDate =
-                                          DateFormat('MMM d, HH:mm')
-                                              .format(date);
+                                      DateFormat('MMM d, HH:mm')
+                                          .format(date);
                                       return Padding(
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 4),
@@ -1696,7 +2201,7 @@ class _QRCodePageState extends State<QRCodePage> {
 
       // Store QR data in Firestore
       final qrDoc =
-          await FirebaseFirestore.instance.collection('qr_codes').add({
+      await FirebaseFirestore.instance.collection('qr_codes').add({
         ...qrInfo,
         'created_at': FieldValue.serverTimestamp(),
         'created_by': currentUser.uid,
