@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 
 import '../Gmap/map.dart';
 import '../market/marketmain.dart';
@@ -26,6 +27,7 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _animationController;
   late final PageController _pageController;
+  DateTime? _lastBackPressed;
 
   final Color primaryGreen = const Color(0xFF2E7D32); // Dark Green
   final Color lightGreen = const Color(0xFF4CAF50); // Light Green
@@ -49,7 +51,7 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _pageController = PageController(initialPage: 0);
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -63,19 +65,43 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<bool> _onWillPop() async {
+    if (_currentIndex != 0) {
+      _pageController.animateToPage(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      setState(() => _currentIndex = 0);
+      return false;
+    }
+
+    if (_lastBackPressed == null ||
+        DateTime.now().difference(_lastBackPressed!) >
+            const Duration(seconds: 2)) {
+      _lastBackPressed = DateTime.now();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Press back again to exit',
+            style: GoogleFonts.poppins(),
+          ),
+          duration: const Duration(seconds: 2),
+          backgroundColor: primaryGreen,
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return WillPopScope(
-      onWillPop: () async {
-        if (_currentIndex == 0) {
-          // Show confirmation dialog if on home page
-          return await _showExitConfirmationDialog(context);
-        }
-        // If not on home page, just go back
-        _pageController.jumpToPage(0);
-        setState(() => _currentIndex = 0);
-        return false; // Prevent default back action
-      },
+      onWillPop: _onWillPop,
       child: Scaffold(
         appBar: AppBar(
           elevation: 0,
@@ -85,18 +111,18 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
             style: GoogleFonts.poppins(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: MediaQuery.of(context).size.width *
-                  0.05, // Responsive font size
+              fontSize: 18.sp,
             ),
           ),
           actions: [
             Stack(
               children: [
                 IconButton(
-                  icon: Icon(Icons.notifications, color: Colors.white)
-                      .animate()
-                      .fade()
-                      .scale(delay: 200.ms),
+                  icon: Icon(
+                    Icons.notifications,
+                    color: Colors.white,
+                    size: 24.sp,
+                  ).animate().fade().scale(delay: 200.ms),
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -116,9 +142,9 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
                         right: 8,
                         top: 8,
                         child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
+                          width: 12.w,
+                          height: 12.h,
+                          decoration: const BoxDecoration(
                             color: Colors.red,
                             shape: BoxShape.circle,
                           ),
@@ -138,7 +164,7 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
           onPageChanged: (index) {
             setState(() => _currentIndex = index);
           },
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const BouncingScrollPhysics(),
         ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
@@ -153,8 +179,7 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
           ),
           child: SafeArea(
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 12.h),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -172,102 +197,22 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
     );
   }
 
-  Future<bool> _showExitConfirmationDialog(BuildContext context) async {
-    return (await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            backgroundColor: Colors.white,
-            title: Column(
-              children: [
-                Icon(
-                  Icons.exit_to_app_rounded,
-                  color: primaryGreen,
-                  size: 48,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Exit WasteWisePro?',
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: primaryGreen,
-                  ),
-                ),
-              ],
-            ),
-            content: Text(
-              'Are you sure you want to exit the app?',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-            ),
-            actions: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        backgroundColor: primaryGreen,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        'Exit',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            actionsAlignment: MainAxisAlignment.spaceEvenly,
-            actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          ),
-        )) ??
-        false;
-  }
-
   Widget _buildNavItem(IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
       onTap: () {
-        _pageController.jumpToPage(index);
-        setState(() => _currentIndex = index);
+        _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
         decoration: BoxDecoration(
           color:
               isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.r),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -275,15 +220,14 @@ class _HomePageState extends State<home> with SingleTickerProviderStateMixin {
             Icon(
               icon,
               color: Colors.white,
-              size: 28,
+              size: 28.sp,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4.h),
             Text(
               label,
               style: GoogleFonts.poppins(
                 color: Colors.white,
-                fontSize: MediaQuery.of(context).size.width *
-                    0.03, // Responsive font size
+                fontSize: 12.sp,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -348,19 +292,20 @@ class _HomeContentState extends State<HomeContent> {
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(16.w),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildCarousel(),
-                const SizedBox(height: 24),
+                SizedBox(height: 24.h),
                 _buildWelcomeSection(),
-                const SizedBox(height: 24),
+                SizedBox(height: 24.h),
                 _buildActionButtons(),
-                const SizedBox(height: 24),
+                SizedBox(height: 24.h),
                 _buildUpdatesSection(),
               ].animate(interval: 200.ms).fadeIn().slideX(),
             ),
@@ -374,10 +319,9 @@ class _HomeContentState extends State<HomeContent> {
     return Stack(
       children: [
         Container(
-          height:
-              MediaQuery.of(context).size.height * 0.25, // Responsive height
+          height: ScreenUtil.instance.setHeight(200), // Fixed height in dp
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(20.r),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.2),
@@ -392,9 +336,9 @@ class _HomeContentState extends State<HomeContent> {
             onPageChanged: (index) => setState(() => _currentIndex = index),
             itemBuilder: (context, index) {
               return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
+                margin: EdgeInsets.symmetric(horizontal: 4.w),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(20.r),
                   image: DecorationImage(
                     image: NetworkImage(_imageUrls[index]),
                     fit: BoxFit.cover,
@@ -405,7 +349,7 @@ class _HomeContentState extends State<HomeContent> {
           ),
         ),
         Positioned(
-          bottom: 16,
+          bottom: 16.h,
           left: 0,
           right: 0,
           child: Center(
@@ -413,8 +357,8 @@ class _HomeContentState extends State<HomeContent> {
               controller: _pageController,
               count: _imageUrls.length,
               effect: ExpandingDotsEffect(
-                dotHeight: 8,
-                dotWidth: 8,
+                dotHeight: 8.h,
+                dotWidth: 8.w,
                 activeDotColor: primaryGreen,
                 dotColor: Colors.white.withOpacity(0.5),
               ),
@@ -432,18 +376,16 @@ class _HomeContentState extends State<HomeContent> {
         Text(
           'Welcome to WasteWisePro',
           style: GoogleFonts.poppins(
-            fontSize: MediaQuery.of(context).size.width *
-                0.06, // Responsive font size
+            fontSize: 24.sp,
             fontWeight: FontWeight.bold,
             color: primaryGreen,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         Text(
           'Make a difference by recycling with our easy pickup service.',
           style: GoogleFonts.poppins(
-            fontSize: MediaQuery.of(context).size.width *
-                0.04, // Responsive font size
+            fontSize: 14.sp,
             color: Colors.grey[600],
           ),
         ),
@@ -465,7 +407,7 @@ class _HomeContentState extends State<HomeContent> {
             ),
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: 16.w),
         Expanded(
           child: _buildActionCard(
             icon: Icons.event,
@@ -488,14 +430,14 @@ class _HomeContentState extends State<HomeContent> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [primaryGreen, lightGreen],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
             BoxShadow(
               color: primaryGreen.withOpacity(0.3),
@@ -507,13 +449,14 @@ class _HomeContentState extends State<HomeContent> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 32, color: Colors.white),
-            const SizedBox(height: 8),
+            Icon(icon, size: 32.sp, color: Colors.white),
+            SizedBox(height: 8.h),
             Text(
               title,
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
+                fontSize: 14.sp,
               ),
             ),
           ],
@@ -524,10 +467,10 @@ class _HomeContentState extends State<HomeContent> {
 
   Widget _buildUpdatesSection() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -542,13 +485,12 @@ class _HomeContentState extends State<HomeContent> {
           Text(
             'Recent Updates',
             style: GoogleFonts.poppins(
-              fontSize: MediaQuery.of(context).size.width *
-                  0.05, // Responsive font size
+              fontSize: 18.sp,
               fontWeight: FontWeight.bold,
               color: primaryGreen,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           _buildUpdateCard(
             icon: Icons.schedule,
             title: 'Upcoming Pick Up',
@@ -572,26 +514,33 @@ class _HomeContentState extends State<HomeContent> {
     return Card(
       elevation: 0,
       color: Colors.grey[50],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
       child: ListTile(
         onTap: onTap,
         leading: Container(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(8.w),
           decoration: BoxDecoration(
             color: Colors.green.shade100,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
           ),
-          child: Icon(icon, color: primaryGreen),
+          child: Icon(icon, color: primaryGreen, size: 24.sp),
         ),
         title: Text(
           title,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 16.sp,
+          ),
         ),
         subtitle: Text(
           subtitle,
-          style: GoogleFonts.poppins(color: Colors.grey[600]),
+          style: GoogleFonts.poppins(
+            color: Colors.grey[600],
+            fontSize: 14.sp,
+          ),
         ),
-        trailing: Icon(Icons.arrow_forward_ios, color: primaryGreen),
+        trailing:
+            Icon(Icons.arrow_forward_ios, color: primaryGreen, size: 20.sp),
       ),
     );
   }

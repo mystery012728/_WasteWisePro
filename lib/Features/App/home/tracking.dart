@@ -14,6 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
+
 // Background task name
 const String TRACKING_TASK = "tracking_task";
 
@@ -116,7 +118,7 @@ Future<void> _scheduleNextPickupInBackground(String pickupTime) async {
       channelKey: 'pickup_tracking',
       title: 'Next Pickup Scheduled',
       body:
-      'Your next pickup is scheduled for ${DateFormat('MMM dd, yyyy h:mm a').format(nextPickupDateTime)}',
+          'Your next pickup is scheduled for ${DateFormat('MMM dd, yyyy h:mm a').format(nextPickupDateTime)}',
       notificationLayout: NotificationLayout.Default,
     ),
     schedule: NotificationCalendar.fromDate(
@@ -296,7 +298,7 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
     final distanceInKm = _distanceToVehicle / 1000;
     final travelTimeInMinutes = (distanceInKm / averageSpeed) * 60;
     final leaveTime =
-    pickupDateTime.subtract(Duration(minutes: travelTimeInMinutes.round()));
+        pickupDateTime.subtract(Duration(minutes: travelTimeInMinutes.round()));
 
     setState(() {
       _pickupDateTime = pickupDateTime;
@@ -321,7 +323,7 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
     final totalDuration = _pickupDateTime!.difference(now);
     final stepDuration = Duration(
         milliseconds:
-        (totalDuration.inMilliseconds / _routePoints.length).round());
+            (totalDuration.inMilliseconds / _routePoints.length).round());
 
     _animationTimer?.cancel();
     _animationTimer = Timer.periodic(stepDuration, (timer) {
@@ -371,16 +373,16 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
       final response = await http.get(
         Uri.parse(
           'https://api.openrouteservice.org/v2/directions/driving-car?'
-              'api_key=$openRouteServiceApiKey'
-              '&start=${_selectedCenter!.location.longitude},${_selectedCenter!.location.latitude}'
-              '&end=${_currentLocation!.longitude},${_currentLocation!.latitude}',
+          'api_key=$openRouteServiceApiKey'
+          '&start=${_selectedCenter!.location.longitude},${_selectedCenter!.location.latitude}'
+          '&end=${_currentLocation!.longitude},${_currentLocation!.latitude}',
         ),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final coordinates =
-        data['features'][0]['geometry']['coordinates'] as List;
+            data['features'][0]['geometry']['coordinates'] as List;
 
         setState(() {
           _routePoints = coordinates
@@ -388,7 +390,7 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
               .toList();
 
           _distanceToVehicle =
-          data['features'][0]['properties']['distance'] as double;
+              data['features'][0]['properties']['distance'] as double;
         });
 
         _updateMapBounds();
@@ -485,7 +487,7 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
         channelKey: 'pickup_tracking',
         title: 'Next Pickup Scheduled!',
         body:
-        'Your next waste pickup is scheduled for ${DateFormat('MMM dd, yyyy h:mm a').format(nextPickupTime)}.',
+            'Your next waste pickup is scheduled for ${DateFormat('MMM dd, yyyy h:mm a').format(nextPickupTime)}.',
         notificationLayout: NotificationLayout.Default,
       ),
     );
@@ -517,31 +519,31 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
     return Container(
       decoration: BoxDecoration(
         color: primaryGreen,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30.r),
+          bottomRight: Radius.circular(30.r),
         ),
       ),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.w),
       child: SafeArea(
         child: Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              icon: Icon(Icons.arrow_back, color: Colors.white, size: 24.sp),
               onPressed: () => Navigator.pop(context),
             ),
             Expanded(
               child: Text(
                 'Track Pickup',
                 style: GoogleFonts.poppins(
-                  fontSize: 20,
+                  fontSize: 20.sp,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
-            const SizedBox(width: 48),
+            SizedBox(width: 48.w),
           ],
         ),
       ),
@@ -550,79 +552,79 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
 
   Widget _buildMapSection() {
     return Container(
-      height: 300,
-      margin: const EdgeInsets.all(16),
+      height: 300.h,
+      margin: EdgeInsets.all(16.w),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         child: _currentLocation == null
             ? const Center(child: CircularProgressIndicator())
             : FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: LatLng(
-              _currentLocation!.latitude,
-              _currentLocation!.longitude,
-            ),
-            initialZoom: 13.0,
-          ),
-          children: [
-            TileLayer(
-              urlTemplate:
-              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              subdomains: const ['a', 'b', 'c'],
-            ),
-            if (_routePoints.isNotEmpty)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: _routePoints,
-                    color: primaryGreen,
-                    strokeWidth: 4.0,
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: LatLng(
+                    _currentLocation!.latitude,
+                    _currentLocation!.longitude,
+                  ),
+                  initialZoom: 13.0,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    subdomains: const ['a', 'b', 'c'],
+                  ),
+                  if (_routePoints.isNotEmpty)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _routePoints,
+                          color: primaryGreen,
+                          strokeWidth: 4.w,
+                        ),
+                      ],
+                    ),
+                  MarkerLayer(
+                    markers: [
+                      if (_currentLocation != null)
+                        Marker(
+                          point: LatLng(
+                            _currentLocation!.latitude,
+                            _currentLocation!.longitude,
+                          ),
+                          child: Icon(
+                            Icons.location_on,
+                            color: Colors.blue,
+                            size: 30.sp,
+                          ),
+                        ),
+                      if (_currentTruckPosition != null)
+                        Marker(
+                          point: _currentTruckPosition!,
+                          child: Icon(
+                            Icons.local_shipping,
+                            color: Colors.green,
+                            size: 30.sp,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
-            MarkerLayer(
-              markers: [
-                if (_currentLocation != null)
-                  Marker(
-                    point: LatLng(
-                      _currentLocation!.latitude,
-                      _currentLocation!.longitude,
-                    ),
-                    child: const Icon(
-                      Icons.location_on,
-                      color: Colors.blue,
-                      size: 30,
-                    ),
-                  ),
-                if (_currentTruckPosition != null)
-                  Marker(
-                    point: _currentTruckPosition!,
-                    child: const Icon(
-                      Icons.local_shipping,
-                      color: Colors.green,
-                      size: 30,
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
 
   Widget _buildWasteCenterInfo() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.symmetric(horizontal: 16.w),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
+            blurRadius: 10.r,
             spreadRadius: 1,
           ),
         ],
@@ -633,34 +635,34 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
           Text(
             'Pickup Vehicle Location',
             style: GoogleFonts.poppins(
-              fontSize: 16,
+              fontSize: 16.sp,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8.h),
           Text(
             _selectedCenter!.name,
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w500,
             ),
           ),
           Text(
             _selectedCenter!.address,
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 14.sp,
               color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8.h),
           Row(
             children: [
-              Icon(Icons.phone, size: 16, color: Colors.grey[600]),
-              const SizedBox(width: 8),
+              Icon(Icons.phone, size: 16.sp, color: Colors.grey[600]),
+              SizedBox(width: 8.w),
               Text(
                 _selectedCenter!.contactNumber,
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   color: Colors.grey[600],
                 ),
               ),
@@ -673,7 +675,7 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
 
   Widget _buildTimeline() {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: EdgeInsets.all(16.w),
       child: Column(
         children: [
           TimelineTile(
@@ -681,8 +683,8 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
             lineXY: 0.2,
             isFirst: true,
             indicatorStyle: IndicatorStyle(
-              width: 30,
-              height: 30,
+              width: 30.w,
+              height: 30.h,
               indicator: _buildTimelineIndicator(true),
               color: primaryGreen,
             ),
@@ -698,8 +700,8 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
             alignment: TimelineAlign.manual,
             lineXY: 0.2,
             indicatorStyle: IndicatorStyle(
-              width: 30,
-              height: 30,
+              width: 30.w,
+              height: 30.h,
               indicator: _buildTimelineIndicator(_isDispatched),
               color: primaryGreen,
             ),
@@ -714,8 +716,8 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
             lineXY: 0.2,
             isLast: true,
             indicatorStyle: IndicatorStyle(
-              width: 30,
-              height: 30,
+              width: 30.w,
+              height: 30.h,
               indicator: _buildTimelineIndicator(_isPickupComplete),
               color: primaryGreen,
             ),
@@ -741,21 +743,21 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
       child: Icon(
         isActive ? Icons.check : Icons.circle,
         color: Colors.white,
-        size: 20,
+        size: 20.sp,
       ),
     );
   }
 
   Widget _buildTimelineChild(String title, String subtitle, bool isActive) {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: EdgeInsets.all(16.w),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
             style: GoogleFonts.poppins(
-              fontSize: 16,
+              fontSize: 16.sp,
               fontWeight: FontWeight.bold,
               color: isActive ? Colors.black : Colors.grey,
             ),
@@ -763,7 +765,7 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
           Text(
             subtitle,
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 14.sp,
               color: isActive ? Colors.black54 : Colors.grey,
             ),
           ),

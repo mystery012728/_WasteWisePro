@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../User_auth/util/screen_util.dart';
 
 class map extends StatefulWidget {
   const map({Key? key}) : super(key: key);
@@ -55,10 +56,10 @@ class _WasteWiseProCentersMapState extends State<map>
       if (response.statusCode == 200) {
         final decodedResponse = json.decode(response.body);
         final List<dynamic> coordinates =
-        decodedResponse['features'][0]['geometry']['coordinates'];
+            decodedResponse['features'][0]['geometry']['coordinates'];
 
         final List<LatLng> points =
-        coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+            coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
 
         if (points.isEmpty) {
           _showErrorAlert('No route found between these points.');
@@ -133,25 +134,25 @@ class _WasteWiseProCentersMapState extends State<map>
   void _listenToWasteCenters() {
     _wasteCentersSubscription =
         _firestore.collection('waste_centers').snapshots().listen((snapshot) {
-          setState(() {
-            _wasteCenters = snapshot.docs.map((doc) {
-              final data = doc.data();
-              return WasteCenter(
-                name: data['name'] ?? '',
-                address: data['address'] ?? '',
-                location: LatLng(
-                  data['location']['latitude'] ?? 0.0,
-                  data['location']['longitude'] ?? 0.0,
-                ),
-                keywords: List<String>.from(data['keywords'] ?? []),
-                contactNumber: data['contactNumber'] ?? '',
-                email: data['email'] ?? '',
-              );
-            }).toList();
-            _filteredCenters = List.from(_wasteCenters);
-            _initializeMarkers();
-          });
-        });
+      setState(() {
+        _wasteCenters = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return WasteCenter(
+            name: data['name'] ?? '',
+            address: data['address'] ?? '',
+            location: LatLng(
+              data['location']['latitude'] ?? 0.0,
+              data['location']['longitude'] ?? 0.0,
+            ),
+            keywords: List<String>.from(data['keywords'] ?? []),
+            contactNumber: data['contactNumber'] ?? '',
+            email: data['email'] ?? '',
+          );
+        }).toList();
+        _filteredCenters = List.from(_wasteCenters);
+        _initializeMarkers();
+      });
+    });
   }
 
   void _initializeMarkers() {
@@ -367,7 +368,7 @@ class _WasteWiseProCentersMapState extends State<map>
   void _showLocationDetails(WasteCenter center) {
     final bool isWasteCenter = _wasteCenters.contains(center);
     final String distance =
-    _calculateDistance(_currentLocation, center.location);
+        _calculateDistance(_currentLocation, center.location);
 
     showModalBottomSheet(
       context: context,
@@ -489,7 +490,7 @@ class _WasteWiseProCentersMapState extends State<map>
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
@@ -497,7 +498,7 @@ class _WasteWiseProCentersMapState extends State<map>
 
   void _showWasteCenterInfo(WasteCenter center) {
     final String distance =
-    _calculateDistance(_currentLocation, center.location);
+        _calculateDistance(_currentLocation, center.location);
     final bool isWasteCenter = _wasteCenters.contains(center);
 
     showDialog(
@@ -505,7 +506,7 @@ class _WasteWiseProCentersMapState extends State<map>
       builder: (BuildContext context) {
         return AlertDialog(
           shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
             center.name,
             style: GoogleFonts.poppins(
@@ -611,7 +612,7 @@ class _WasteWiseProCentersMapState extends State<map>
             itemBuilder: (context, index) {
               final center = _filteredCenters[index];
               final distance =
-              _calculateDistance(_currentLocation, center.location);
+                  _calculateDistance(_currentLocation, center.location);
               return Card(
                 elevation: 0,
                 color: Colors.grey[50],
@@ -731,6 +732,9 @@ class _WasteWiseProCentersMapState extends State<map>
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       body: Stack(
         children: [
@@ -739,17 +743,16 @@ class _WasteWiseProCentersMapState extends State<map>
             options: MapOptions(
               initialCenter: _currentLocation,
               initialZoom: 13.0,
-              minZoom: 2.0, // Reduced minimum zoom to allow seeing more of the world
+              minZoom: 2.0,
               maxZoom: 18.0,
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
-              // Removed the onMapEvent handler that was constraining to Mumbai bounds
             ),
             children: [
               TileLayer(
                 urlTemplate:
-                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                 subdomains: const ['a', 'b', 'c'],
               ),
               if (_routePoints.isNotEmpty)
@@ -767,18 +770,20 @@ class _WasteWiseProCentersMapState extends State<map>
           ),
           // Search bar
           Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            left: 16,
-            right: 16,
+            top: MediaQuery.of(context).padding.top +
+                ScreenUtil.instance.setHeight(10),
+            left: ScreenUtil.instance.setWidth(16),
+            right: ScreenUtil.instance.setWidth(16),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius:
+                    BorderRadius.circular(ScreenUtil.instance.setRadius(16)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
+                    blurRadius: ScreenUtil.instance.setRadius(10),
+                    offset: Offset(0, ScreenUtil.instance.setHeight(2)),
                   ),
                 ],
               ),
@@ -786,25 +791,30 @@ class _WasteWiseProCentersMapState extends State<map>
                 controller: _searchController,
                 focusNode: _searchFocusNode,
                 onChanged: _filterCenters,
-                style: GoogleFonts.poppins(),
+                style: GoogleFonts.poppins(
+                    fontSize: ScreenUtil.instance.setSp(14)),
                 decoration: InputDecoration(
                   hintText: 'Search waste centers or locations...',
-                  hintStyle: GoogleFonts.poppins(color: Colors.grey),
-                  prefixIcon: Icon(Icons.search, color: primaryGreen),
+                  hintStyle: GoogleFonts.poppins(
+                      color: Colors.grey,
+                      fontSize: ScreenUtil.instance.setSp(14)),
+                  prefixIcon: Icon(Icons.search,
+                      color: primaryGreen, size: ScreenUtil.instance.setSp(20)),
                   suffixIcon: _isSearching
                       ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _searchController.clear();
-                      _filterCenters('');
-                      FocusScope.of(context).unfocus();
-                    },
-                  )
+                          icon: Icon(Icons.clear,
+                              size: ScreenUtil.instance.setSp(20)),
+                          onPressed: () {
+                            _searchController.clear();
+                            _filterCenters('');
+                            FocusScope.of(context).unfocus();
+                          },
+                        )
                       : null,
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: ScreenUtil.instance.setWidth(16),
+                    vertical: ScreenUtil.instance.setHeight(12),
                   ),
                 ),
               ),
@@ -813,126 +823,28 @@ class _WasteWiseProCentersMapState extends State<map>
           // Search results
           if (_isSearching)
             Positioned(
-              top: MediaQuery.of(context).padding.top + 70,
-              left: 16,
-              right: 16,
+              top: MediaQuery.of(context).padding.top +
+                  ScreenUtil.instance.setHeight(70),
+              left: ScreenUtil.instance.setWidth(16),
+              right: ScreenUtil.instance.setWidth(16),
               child: _buildSearchResults(),
             ),
           // Bottom card list (when not searching)
           if (!_isSearching)
             Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
+              bottom: ScreenUtil.instance.setHeight(16),
+              left: ScreenUtil.instance.setWidth(16),
+              right: ScreenUtil.instance.setWidth(16),
               child: Container(
-                height: 100,
+                height: ScreenUtil.instance.setHeight(100),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: _filteredCenters.length,
                   itemBuilder: (context, index) {
                     WasteCenter center = _filteredCenters[index];
                     String distance =
-                    _calculateDistance(_currentLocation, center.location);
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: Material(
-                        elevation: 4,
-                        borderRadius: BorderRadius.circular(16),
-                        child: InkWell(
-                          onTap: () => _showLocationDetails(center),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            width: 280,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: _wasteCenters.contains(center)
-                                            ? Colors.green.shade100
-                                            : Colors.orange.shade100,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        _wasteCenters.contains(center)
-                                            ? Icons.location_on
-                                            : Icons.place,
-                                        color: _wasteCenters.contains(center)
-                                            ? primaryGreen
-                                            : Colors.orange,
-                                        size: 20,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            _wasteCenters.contains(center)
-                                                ? center.name.replaceAll(
-                                                'Waste Wise Pro Center - ',
-                                                '')
-                                                : center.name,
-                                            style: GoogleFonts.poppins(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          Text(
-                                            center.address,
-                                            style: GoogleFonts.poppins(
-                                              color: Colors.grey[600],
-                                              fontSize: 12,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const Spacer(),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Icon(
-                                      Icons.directions_walk,
-                                      size: 14,
-                                      color: primaryGreen,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      distance,
-                                      style: GoogleFonts.poppins(
-                                        color: primaryGreen,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                        .animate()
-                        .fade(delay: (50 * index).ms)
-                        .slideX(begin: 0.2, delay: (50 * index).ms);
+                        _calculateDistance(_currentLocation, center.location);
+                    return _buildCenterCard(center, distance, index);
                   },
                 ),
               ),
@@ -950,11 +862,12 @@ class _WasteWiseProCentersMapState extends State<map>
               _getCurrentLocation();
             },
             backgroundColor: primaryGreen,
-            child: const Icon(Icons.my_location, color: Colors.white),
+            child: Icon(Icons.my_location,
+                color: Colors.white, size: ScreenUtil.instance.setSp(24)),
           ).animate().fade().scale(),
           if (_routePoints.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 16),
+              padding: EdgeInsets.only(top: ScreenUtil.instance.setHeight(16)),
               child: FloatingActionButton(
                 onPressed: () {
                   setState(() {
@@ -962,12 +875,114 @@ class _WasteWiseProCentersMapState extends State<map>
                   });
                 },
                 backgroundColor: Colors.red,
-                child: const Icon(Icons.clear, color: Colors.white),
+                child: Icon(Icons.clear,
+                    color: Colors.white, size: ScreenUtil.instance.setSp(24)),
               ).animate().fade().scale(),
             ),
         ],
       ),
     );
+  }
+
+  Widget _buildCenterCard(WasteCenter center, String distance, int index) {
+    return Padding(
+      padding: EdgeInsets.only(right: ScreenUtil.instance.setWidth(12)),
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(ScreenUtil.instance.setRadius(16)),
+        child: InkWell(
+          onTap: () => _showLocationDetails(center),
+          borderRadius:
+              BorderRadius.circular(ScreenUtil.instance.setRadius(16)),
+          child: Container(
+            width: ScreenUtil.instance.setWidth(280),
+            padding: EdgeInsets.all(ScreenUtil.instance.setWidth(16)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  BorderRadius.circular(ScreenUtil.instance.setRadius(16)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(ScreenUtil.instance.setWidth(8)),
+                      decoration: BoxDecoration(
+                        color: _wasteCenters.contains(center)
+                            ? Colors.green.shade100
+                            : Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(
+                            ScreenUtil.instance.setRadius(8)),
+                      ),
+                      child: Icon(
+                        _wasteCenters.contains(center)
+                            ? Icons.location_on
+                            : Icons.place,
+                        color: _wasteCenters.contains(center)
+                            ? primaryGreen
+                            : Colors.orange,
+                        size: ScreenUtil.instance.setSp(20),
+                      ),
+                    ),
+                    SizedBox(width: ScreenUtil.instance.setWidth(8)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            center.name,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: ScreenUtil.instance.setSp(14),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            center.address,
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey[600],
+                              fontSize: ScreenUtil.instance.setSp(12),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Spacer(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(
+                      Icons.directions_walk,
+                      size: ScreenUtil.instance.setSp(14),
+                      color: primaryGreen,
+                    ),
+                    SizedBox(width: ScreenUtil.instance.setWidth(4)),
+                    Text(
+                      distance,
+                      style: GoogleFonts.poppins(
+                        color: primaryGreen,
+                        fontSize: ScreenUtil.instance.setSp(12),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    )
+        .animate()
+        .fade(delay: (50 * index).ms)
+        .slideX(begin: 0.2, delay: (50 * index).ms);
   }
 }
 

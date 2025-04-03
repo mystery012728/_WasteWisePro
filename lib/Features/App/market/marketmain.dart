@@ -11,6 +11,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutternew/features/app/market/fertilizer.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 import 'cart.dart';
 import 'firestore_service.dart';
 import 'hotdeals_details.dart';
@@ -91,37 +92,42 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
       appBar: AppBar(
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: Icon(Icons.filter_list, color: Colors.teal.shade700),
+          icon:
+              Icon(Icons.filter_list, color: Colors.teal.shade700, size: 24.sp),
           onPressed: _showFilterDialog,
         ),
         title: Container(
-          height: 40,
+          height: 40.h,
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(20.r),
           ),
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
               hintText: 'Search products...',
-              prefixIcon: Icon(Icons.search, color: Colors.teal.shade700),
+              prefixIcon:
+                  Icon(Icons.search, color: Colors.teal.shade700, size: 20.sp),
               border: InputBorder.none,
               contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
               suffixIcon: IconButton(
-                icon: Icon(Icons.clear, color: Colors.grey.shade600),
+                icon:
+                    Icon(Icons.clear, color: Colors.grey.shade600, size: 20.sp),
                 onPressed: () {
                   _searchController.clear();
                 },
               ),
             ),
+            style: GoogleFonts.poppins(fontSize: 14.sp),
             onSubmitted: _handleSearch,
             textInputAction: TextInputAction.search,
           ),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.shopping_cart, color: Colors.teal.shade700),
+            icon: Icon(Icons.shopping_cart,
+                color: Colors.teal.shade700, size: 24.sp),
             onPressed: () {
               Navigator.push(
                 context,
@@ -147,9 +153,9 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildWelcomeCard(),
-        const SizedBox(height: 24),
+        SizedBox(height: 24.h),
         _buildCategoriesSection(context),
-        const SizedBox(height: 24),
+        SizedBox(height: 24.h),
         _buildHotDealsSection(context),
       ],
     );
@@ -157,11 +163,11 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
 
   Widget _buildWelcomeCard() {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: EdgeInsets.all(16.w),
       child: Stack(
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24.w),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -171,12 +177,12 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(24.r),
               boxShadow: [
                 BoxShadow(
                   color: Colors.teal.shade200.withOpacity(0.5),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  blurRadius: 20.r,
+                  offset: Offset(0, 10.h),
                 ),
               ],
             ),
@@ -186,16 +192,16 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                 Text(
                   'Eco-Friendly Shopping',
                   style: GoogleFonts.poppins(
-                    fontSize: 28,
+                    fontSize: 28.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 Text(
                   'Discover sustainable products that make a difference',
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
+                    fontSize: 16.sp,
                     color: Colors.white.withOpacity(0.9),
                   ),
                 ),
@@ -217,23 +223,23 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
           child: Text(
             'Categories',
             style: GoogleFonts.poppins(
-              fontSize: 24,
+              fontSize: 20.sp,
               fontWeight: FontWeight.bold,
               color: Colors.teal.shade900,
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 12.h),
         SizedBox(
-          height: 160,
+          height: 140.h,
           child: ListView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: EdgeInsets.symmetric(horizontal: 12.w),
             children: [
               _buildCategoryCard(
                 context,
@@ -244,14 +250,14 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
               ),
               _buildCategoryCard(
                 context,
-                title: 'Recycled Crafts',
+                title: 'Recycled\nCrafts',
                 icon: Icons.recycling,
                 page: RecycledProductsPage(),
                 color: Colors.blue.shade400,
               ),
               _buildCategoryCard(
                 context,
-                title: 'Recycled Electronics',
+                title: 'Recycled\nElectronics',
                 icon: Icons.electric_bolt,
                 page: RecycledElectronics(),
                 color: Colors.grey.shade400,
@@ -264,53 +270,55 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
   }
 
   Widget _buildCategoryCard(
-      BuildContext context, {
-        required String title,
-        required IconData icon,
-        required Widget page,
-        required Color color,
-      }) {
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Widget page,
+    required Color color,
+  }) {
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => page),
       ),
       child: Container(
-        width: 200,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
+        width: 160.w,
+        margin: EdgeInsets.symmetric(horizontal: 6.w),
         decoration: BoxDecoration(
           color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16.r),
           border: Border.all(
             color: color.withOpacity(0.3),
-            width: 2,
+            width: 1.5,
           ),
         ),
         child: Stack(
           children: [
             Positioned(
-              right: -20,
-              bottom: -20,
+              right: -15.w,
+              bottom: -15.h,
               child: Icon(
                 icon,
-                size: 120,
+                size: 80.sp,
                 color: color.withOpacity(0.2),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(16.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(icon, size: 40, color: color),
-                  const SizedBox(height: 16),
+                  Icon(icon, size: 32.sp, color: color),
+                  SizedBox(height: 12.h),
                   Text(
                     title,
                     style: GoogleFonts.poppins(
-                      fontSize: 20,
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.bold,
                       color: color.withOpacity(0.8),
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -331,17 +339,17 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
           child: Text(
             'Hot Deals',
             style: GoogleFonts.poppins(
-              fontSize: 24,
+              fontSize: 20.sp,
               fontWeight: FontWeight.bold,
               color: Colors.teal.shade900,
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 12.h),
         StreamBuilder<List<Map<String, dynamic>>>(
           stream: _firestoreService.getHotDealsProducts(),
           builder: (context, snapshot) {
@@ -349,74 +357,70 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
               return Center(
                 child: CircularProgressIndicator(
                   valueColor:
-                  AlwaysStoppedAnimation<Color>(Colors.teal.shade700),
+                      AlwaysStoppedAnimation<Color>(Colors.teal.shade700),
                 ),
               );
             }
 
             final products = snapshot.data!;
-            return Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: SizedBox(
-                  height: 380,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      final product = products[index];
-                      final double price = (product['price'] != null)
-                          ? (product['price'] is int
+            return SizedBox(
+              height: 300.h,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                itemCount: products.length,
+                itemBuilder: (context, index) {
+                  final product = products[index];
+                  final double price = (product['price'] != null)
+                      ? (product['price'] is int
                           ? (product['price'] as int).toDouble()
                           : (product['price'] as double))
-                          : 0.0;
+                      : 0.0;
 
-                      final double oldPrice = (product['oldPrice'] != null)
-                          ? (product['oldPrice'] is int
+                  final double oldPrice = (product['oldPrice'] != null)
+                      ? (product['oldPrice'] is int
                           ? (product['oldPrice'] as int).toDouble()
                           : (product['oldPrice'] as double))
-                          : 0.0;
+                      : 0.0;
 
-                      final double discountPercentage = oldPrice > 0
-                          ? ((oldPrice - price) / oldPrice) * 100
-                          : 0;
+                  final double discountPercentage =
+                      oldPrice > 0 ? ((oldPrice - price) / oldPrice) * 100 : 0;
 
-                      final double rating = (product['rating'] != null)
-                          ? (product['rating'] is int
+                  final double rating = (product['rating'] != null)
+                      ? (product['rating'] is int
                           ? (product['rating'] as int).toDouble()
                           : (product['rating'] as double))
-                          : 0.0;
+                      : 0.0;
 
-                      final int reviewCount =
-                          product['reviewCount'] as int? ?? 0;
+                  final int reviewCount = product['reviewCount'] as int? ?? 0;
 
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  HotDealsDetails(product: product),
-                            ),
-                          );
-                        },
-                        child: _buildProductCard(
-                          context: context,
-                          title: product['title'],
-                          price: price,
-                          oldPrice: oldPrice,
-                          tag: product['tag'],
-                          asset: product['image'],
-                          discountPercentage: discountPercentage,
-                          product: product,
-                          rating: rating,
-                          reviewCount: reviewCount,
-                        ).animate(delay: (index * 100).ms).fadeIn().slideX(),
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              HotDealsDetails(product: product),
+                        ),
                       );
                     },
-                  ),
-                ));
+                    child: _buildProductCard(
+                      context: context,
+                      title: product['title'],
+                      price: price,
+                      oldPrice: oldPrice,
+                      tag: product['tag'],
+                      asset: product['image'],
+                      discountPercentage: discountPercentage,
+                      product: product,
+                      rating: rating,
+                      reviewCount: reviewCount,
+                    ).animate(delay: (index * 100).ms).fadeIn().slideX(),
+                  );
+                },
+              ),
+            );
           },
         ),
       ],
@@ -436,16 +440,16 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
     required int reviewCount,
   }) {
     return Container(
-      width: 250,
-      margin: const EdgeInsets.only(right: 16, bottom: 8),
+      width: 180.w,
+      margin: EdgeInsets.only(right: 12.w, bottom: 8.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.shade200,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            blurRadius: 8.r,
+            offset: Offset(0, 4.h),
           ),
         ],
       ),
@@ -456,11 +460,10 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
           Stack(
             children: [
               ClipRRect(
-                borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
                 child: CachedNetworkImage(
                   imageUrl: asset,
-                  height: 160,
+                  height: 120.h,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
@@ -468,7 +471,7 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                     child: Center(
                       child: CircularProgressIndicator(
                         valueColor:
-                        AlwaysStoppedAnimation<Color>(Colors.teal.shade700),
+                            AlwaysStoppedAnimation<Color>(Colors.teal.shade700),
                       ),
                     ),
                   ),
@@ -480,21 +483,21 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
               ),
               if (tag.isNotEmpty)
                 Positioned(
-                  top: 12,
-                  left: 12,
+                  top: 8.h,
+                  left: 8.w,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.w,
+                      vertical: 4.h,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.red.shade400,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8.r),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.red.shade100,
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                          blurRadius: 4.r,
+                          offset: Offset(0, 2.h),
                         ),
                       ],
                     ),
@@ -503,26 +506,26 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: 10.sp,
                       ),
                     ),
                   ),
                 ),
               if (discountPercentage > 0)
                 Positioned(
-                  top: 12,
-                  right: 12,
+                  top: 8.h,
+                  right: 8.w,
                   child: Container(
-                    width: 45,
-                    height: 45,
+                    width: 32.w,
+                    height: 32.h,
                     decoration: BoxDecoration(
                       color: Colors.red.shade500,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: Colors.red.shade200,
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                          blurRadius: 4.r,
+                          offset: Offset(0, 2.h),
                         ),
                       ],
                     ),
@@ -535,7 +538,7 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 11.sp,
                             ),
                           ),
                           Text(
@@ -543,140 +546,141 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 10,
+                              fontSize: 7.sp,
                             ),
                           ),
                         ],
-                      )
-                          .animate()
-                          .scale(duration: 300.ms, curve: Curves.elasticOut)
-                          .then()
-                          .shake(duration: 200.ms, delay: 300.ms),
+                      ),
                     ),
                   ),
                 ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.all(10.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.sp,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '₹$price',
-                      style: GoogleFonts.poppins(
-                        color: Colors.teal.shade700,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 18,
-                      ),
-                    ),
-                    if (oldPrice > 0) ...[
-                      const SizedBox(width: 8),
+                  SizedBox(height: 4.h),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
                       Text(
-                        '₹$oldPrice',
+                        '₹$price',
                         style: GoogleFonts.poppins(
-                          color: Colors.grey,
-                          decoration: TextDecoration.lineThrough,
-                          decorationColor: Colors.red.shade300,
-                          decorationThickness: 2,
-                          fontSize: 14,
+                          color: Colors.teal.shade700,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15.sp,
                         ),
                       ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    ...List.generate(
-                      5,
-                          (index) => Icon(
-                        index < rating.round() ? Icons.star : Icons.star_border,
-                        size: 16,
-                        color: Colors.amber,
-                      ),
-                    ),
-                    if (reviewCount > 0) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        '($reviewCount)',
-                        style: GoogleFonts.poppins(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (discountPercentage > 0)
-                  Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.local_offer,
-                          size: 16,
-                          color: Colors.red.shade400,
-                        ),
-                        const SizedBox(width: 4),
+                      if (oldPrice > 0) ...[
+                        SizedBox(width: 4.w),
                         Text(
-                          'Save ₹${(oldPrice - price).toStringAsFixed(2)}',
+                          '₹$oldPrice',
                           style: GoogleFonts.poppins(
-                            color: Colors.red.shade400,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
+                            color: Colors.grey,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: Colors.red.shade300,
+                            decorationThickness: 2,
+                            fontSize: 11.sp,
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                  SizedBox(height: 4.h),
+                  Row(
+                    children: [
+                      ...List.generate(
+                        5,
+                        (index) => Icon(
+                          index < rating.round()
+                              ? Icons.star
+                              : Icons.star_border,
+                          size: 12.sp,
+                          color: Colors.amber,
+                        ),
+                      ),
+                      if (reviewCount > 0) ...[
+                        SizedBox(width: 4.w),
+                        Text(
+                          '($reviewCount)',
+                          style: GoogleFonts.poppins(
+                            color: Colors.grey[600],
+                            fontSize: 9.sp,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (discountPercentage > 0)
+                    Container(
+                      margin: EdgeInsets.only(top: 4.h),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.local_offer,
+                            size: 12.sp,
+                            color: Colors.red.shade400,
+                          ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            'Save ₹${(oldPrice - price).toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                              color: Colors.red.shade400,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 9.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Provider.of<CartProvider>(context, listen: false)
+                            .addToCart({
+                          'title': title,
+                          'price': price,
+                          'image': asset,
+                          'quantity': 1,
+                        });
+                        CustomSnackbar.showSuccess(
+                          context: context,
+                          message: '$title added to cart',
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal.shade700,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: 4.h),
+                      ),
+                      child: Text(
+                        'Add to Cart',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11.sp,
+                        ),
+                      ),
                     ),
                   ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Provider.of<CartProvider>(context, listen: false)
-                          .addToCart({
-                        'title': title,
-                        'price': price,
-                        'image': asset,
-                        'quantity': 1,
-                      });
-                      CustomSnackbar.showSuccess(
-                        context: context,
-                        message: '$title added to cart',
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade700,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    child: Text(
-                      'Add to Cart',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

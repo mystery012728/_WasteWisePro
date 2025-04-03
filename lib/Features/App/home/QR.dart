@@ -111,7 +111,7 @@ class _ResultPageState extends State<ResultPage> {
       await FirebaseFirestore.instance.collection('notifications').add({
         'user_id': subscriptionData!['customer_id'],
         'message':
-        'Your scheduled pickup for today at ${subscriptionData!['pickup_time']} was missed. Please contact support for assistance.',
+            'Your scheduled pickup for today at ${subscriptionData!['pickup_time']} was missed. Please contact support for assistance.',
         'created_at': Timestamp.now(),
         'read': false,
         'type': 'pickup_missed'
@@ -274,7 +274,7 @@ class _ResultPageState extends State<ResultPage> {
         await FirebaseFirestore.instance.collection('notifications').add({
           'user_id': specialDay['userId'],
           'message':
-          'Your special ${specialDay['type']} pickup scheduled for ${specialDay['pickup_time']} was missed. Please contact support for assistance.',
+              'Your special ${specialDay['type']} pickup scheduled for ${specialDay['pickup_time']} was missed. Please contact support for assistance.',
           'created_at': Timestamp.now(),
           'read': false,
           'type': 'special_pickup_missed'
@@ -315,26 +315,26 @@ class _ResultPageState extends State<ResultPage> {
       body: isLoading
           ? Center(child: CircularProgressIndicator(color: primaryGreen))
           : SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Padding(
-              padding: const EdgeInsets.all(20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (subscriptionData != null) _buildSubscriptionCard(),
-                  if (specialDaysList.isNotEmpty) ...[
-                    SizedBox(height: 20),
-                    _buildSpecialDaysSection(),
-                  ],
-                  SizedBox(height: 20),
+                  _buildHeader(),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (subscriptionData != null) _buildSubscriptionCard(),
+                        if (specialDaysList.isNotEmpty) ...[
+                          SizedBox(height: 20),
+                          _buildSpecialDaysSection(),
+                        ],
+                        SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -388,9 +388,9 @@ class _ResultPageState extends State<ResultPage> {
     final now = DateTime.now();
 
     List<String> householdWasteTypes =
-    List<String>.from(subscriptionData!['household_waste_types'] ?? []);
+        List<String>.from(subscriptionData!['household_waste_types'] ?? []);
     List<String> commercialWasteTypes =
-    List<String>.from(subscriptionData!['commercial_waste_types'] ?? []);
+        List<String>.from(subscriptionData!['commercial_waste_types'] ?? []);
 
     return Container(
       decoration: BoxDecoration(
@@ -510,189 +510,189 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                   )
                 else ...[
-                    if (!isSubscriptionCancelled && !isPickupMissed) ...[
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (householdWasteTypes.isNotEmpty) ...[
-                              Text(
-                                'Household Waste',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: primaryGreen,
-                                ),
+                  if (!isSubscriptionCancelled && !isPickupMissed) ...[
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (householdWasteTypes.isNotEmpty) ...[
+                            Text(
+                              'Household Waste',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: primaryGreen,
                               ),
-                              SizedBox(height: 8),
-                              ...householdWasteTypes.map((type) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: TextField(
-                                  controller: weightControllers[type],
-                                  keyboardType:
-                                  TextInputType.numberWithOptions(
-                                      decimal: true),
-                                  decoration: InputDecoration(
-                                    labelText: 'Enter $type weight (kg)',
-                                    hintText: 'e.g. 5.5',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                            ),
+                            SizedBox(height: 8),
+                            ...householdWasteTypes.map((type) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: TextField(
+                                    controller: weightControllers[type],
+                                    keyboardType:
+                                        TextInputType.numberWithOptions(
+                                            decimal: true),
+                                    decoration: InputDecoration(
+                                      labelText: 'Enter $type weight (kg)',
+                                      hintText: 'e.g. 5.5',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      prefixIcon: Icon(Icons.scale,
+                                          color: primaryGreen),
                                     ),
-                                    prefixIcon: Icon(Icons.scale,
-                                        color: primaryGreen),
                                   ),
-                                ),
-                              )),
-                            ],
-                            if (commercialWasteTypes.isNotEmpty) ...[
-                              SizedBox(height: 16),
-                              Text(
-                                'Commercial Waste',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: primaryGreen,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              ...commercialWasteTypes.map((type) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: TextField(
-                                  controller: weightControllers[type],
-                                  keyboardType:
-                                  TextInputType.numberWithOptions(
-                                      decimal: true),
-                                  decoration: InputDecoration(
-                                    labelText: 'Enter $type weight (kg)',
-                                    hintText: 'e.g. 5.5',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    prefixIcon: Icon(Icons.scale,
-                                        color: primaryGreen),
-                                  ),
-                                ),
-                              )),
-                            ],
+                                )),
+                          ],
+                          if (commercialWasteTypes.isNotEmpty) ...[
                             SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () async {
-                                  Map<String, double> weights = {};
-                                  // Collect weights without validation
-                                  weightControllers.forEach((type, controller) {
-                                    if (controller.text.isNotEmpty) {
-                                      weights[type] =
-                                          double.parse(controller.text);
-                                    }
+                            Text(
+                              'Commercial Waste',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: primaryGreen,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            ...commercialWasteTypes.map((type) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: TextField(
+                                    controller: weightControllers[type],
+                                    keyboardType:
+                                        TextInputType.numberWithOptions(
+                                            decimal: true),
+                                    decoration: InputDecoration(
+                                      labelText: 'Enter $type weight (kg)',
+                                      hintText: 'e.g. 5.5',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      prefixIcon: Icon(Icons.scale,
+                                          color: primaryGreen),
+                                    ),
+                                  ),
+                                )),
+                          ],
+                          SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                Map<String, double> weights = {};
+                                // Collect weights without validation
+                                weightControllers.forEach((type, controller) {
+                                  if (controller.text.isNotEmpty) {
+                                    weights[type] =
+                                        double.parse(controller.text);
+                                  }
+                                });
+
+                                try {
+                                  // Add to successful pickups collection
+                                  await FirebaseFirestore.instance
+                                      .collection('successful_pickups')
+                                      .add({
+                                    'subscription_id': subscriptionData!['id'],
+                                    'customer_id':
+                                        subscriptionData!['customer_id'],
+                                    'pickup_date': Timestamp.now(),
+                                    'scheduled_time':
+                                        subscriptionData!['pickup_time'],
+                                    'subscription_type':
+                                        subscriptionData!['subscription_type'],
+                                    'waste_weights': weights,
+                                    'household_waste_types':
+                                        householdWasteTypes,
+                                    'commercial_waste_types':
+                                        commercialWasteTypes,
+                                    'status': 'completed'
                                   });
 
-                                  try {
-                                    // Add to successful pickups collection
-                                    await FirebaseFirestore.instance
-                                        .collection('successful_pickups')
-                                        .add({
-                                      'subscription_id': subscriptionData!['id'],
-                                      'customer_id':
-                                      subscriptionData!['customer_id'],
-                                      'pickup_date': Timestamp.now(),
-                                      'scheduled_time':
-                                      subscriptionData!['pickup_time'],
-                                      'subscription_type':
-                                      subscriptionData!['subscription_type'],
-                                      'waste_weights': weights,
-                                      'household_waste_types':
-                                      householdWasteTypes,
-                                      'commercial_waste_types':
-                                      commercialWasteTypes,
-                                      'status': 'completed'
-                                    });
+                                  // Create successful pickup notification
+                                  await FirebaseFirestore.instance
+                                      .collection('notifications')
+                                      .add({
+                                    'user_id': subscriptionData!['customer_id'],
+                                    'message':
+                                        'Your waste pickup has been completed successfully. Thank you for using our service!',
+                                    'created_at': Timestamp.now(),
+                                    'read': false,
+                                    'type': 'pickup_completed'
+                                  });
 
-                                    // Create successful pickup notification
-                                    await FirebaseFirestore.instance
-                                        .collection('notifications')
-                                        .add({
-                                      'user_id': subscriptionData!['customer_id'],
-                                      'message':
-                                      'Your waste pickup has been completed successfully. Thank you for using our service!',
-                                      'created_at': Timestamp.now(),
-                                      'read': false,
-                                      'type': 'pickup_completed'
-                                    });
+                                  // Add to upcoming pickups collection for next pickup
+                                  final nextPickupDate =
+                                      DateTime.now().add(Duration(days: 1));
+                                  await FirebaseFirestore.instance
+                                      .collection('upcoming_pickups')
+                                      .add({
+                                    'subscription_id': subscriptionData!['id'],
+                                    'customer_id':
+                                        subscriptionData!['customer_id'],
+                                    'pickup_date':
+                                        Timestamp.fromDate(nextPickupDate),
+                                    'scheduled_time':
+                                        subscriptionData!['pickup_time'],
+                                    'subscription_type':
+                                        subscriptionData!['subscription_type'],
+                                    'pickup_address':
+                                        subscriptionData!['pickup_address'],
+                                    'household_waste_types':
+                                        householdWasteTypes,
+                                    'commercial_waste_types':
+                                        commercialWasteTypes,
+                                    'status': 'pending',
+                                    'type': 'subscription',
+                                    'created_at': Timestamp.now()
+                                  });
 
-                                    // Add to upcoming pickups collection for next pickup
-                                    final nextPickupDate =
-                                    DateTime.now().add(Duration(days: 1));
-                                    await FirebaseFirestore.instance
-                                        .collection('upcoming_pickups')
-                                        .add({
-                                      'subscription_id': subscriptionData!['id'],
-                                      'customer_id':
-                                      subscriptionData!['customer_id'],
-                                      'pickup_date':
-                                      Timestamp.fromDate(nextPickupDate),
-                                      'scheduled_time':
-                                      subscriptionData!['pickup_time'],
-                                      'subscription_type':
-                                      subscriptionData!['subscription_type'],
-                                      'pickup_address':
-                                      subscriptionData!['pickup_address'],
-                                      'household_waste_types':
-                                      householdWasteTypes,
-                                      'commercial_waste_types':
-                                      commercialWasteTypes,
-                                      'status': 'pending',
-                                      'type': 'subscription',
-                                      'created_at': Timestamp.now()
-                                    });
+                                  // Pickup confirmed successfully
 
-                                    // Pickup confirmed successfully
-
-                                    if (mounted) {
-                                      CustomSnackbar.showSuccess(
-                                        context: context,
-                                        message: 'Pickup confirmed successfully!',
-                                      );
-                                    }
-
-                                    // Re-enable scanning
-                                    await _enableScanning();
-                                    Navigator.pop(context);
-                                  } catch (e) {
-                                    print('Error confirming pickup: $e');
-                                    if (mounted) {
-                                      CustomSnackbar.showError(
-                                        context: context,
-                                        message:
-                                        'Failed to confirm pickup. Please try again.',
-                                      );
-                                    }
+                                  if (mounted) {
+                                    CustomSnackbar.showSuccess(
+                                      context: context,
+                                      message: 'Pickup confirmed successfully!',
+                                    );
                                   }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primaryGreen,
-                                  padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
+
+                                  // Re-enable scanning
+                                  await _enableScanning();
+                                  Navigator.pop(context);
+                                } catch (e) {
+                                  print('Error confirming pickup: $e');
+                                  if (mounted) {
+                                    CustomSnackbar.showError(
+                                      context: context,
+                                      message:
+                                          'Failed to confirm pickup. Please try again.',
+                                    );
+                                  }
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryGreen,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Text(
-                                  'Confirm Subscription Pickup',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
+                              ),
+                              child: Text(
+                                'Confirm Subscription Pickup',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ],
+                ],
               ],
             ),
           ),
@@ -740,11 +740,11 @@ class _ResultPageState extends State<ResultPage> {
                           icon: Icon(Icons.arrow_back_ios, size: 16),
                           onPressed: currentSpecialDayIndex > 0
                               ? () {
-                            _specialDaysPageController.previousPage(
-                              duration: Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          }
+                                  _specialDaysPageController.previousPage(
+                                    duration: Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                }
                               : null,
                           color: currentSpecialDayIndex > 0
                               ? primaryGreen
@@ -753,16 +753,16 @@ class _ResultPageState extends State<ResultPage> {
                         IconButton(
                           icon: Icon(Icons.arrow_forward_ios, size: 16),
                           onPressed: currentSpecialDayIndex <
-                              specialDaysList.length - 1
+                                  specialDaysList.length - 1
                               ? () {
-                            _specialDaysPageController.nextPage(
-                              duration: Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          }
+                                  _specialDaysPageController.nextPage(
+                                    duration: Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                }
                               : null,
                           color: currentSpecialDayIndex <
-                              specialDaysList.length - 1
+                                  specialDaysList.length - 1
                               ? primaryGreen
                               : Colors.grey[400],
                         ),
@@ -888,7 +888,7 @@ class _ResultPageState extends State<ResultPage> {
                           .map((type) {
                         final controllerKey = 'household_$type';
                         final weight = specialDayData['household_waste_weights']
-                        ?[type] ??
+                                ?[type] ??
                             0.0;
 
                         // Initialize controller if it doesn't exist
@@ -906,7 +906,7 @@ class _ResultPageState extends State<ResultPage> {
                           child: TextField(
                             controller: weightControllers[controllerKey],
                             keyboardType:
-                            TextInputType.numberWithOptions(decimal: true),
+                                TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: 'Enter $type weight (kg)',
                               hintText: 'e.g. 5.5',
@@ -914,7 +914,7 @@ class _ResultPageState extends State<ResultPage> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               prefixIcon:
-                              Icon(Icons.scale, color: primaryGreen),
+                                  Icon(Icons.scale, color: primaryGreen),
                             ),
                           ),
                         );
@@ -958,7 +958,7 @@ class _ResultPageState extends State<ResultPage> {
                           child: TextField(
                             controller: weightControllers[controllerKey],
                             keyboardType:
-                            TextInputType.numberWithOptions(decimal: true),
+                                TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: 'Enter $type weight (kg)',
                               hintText: 'e.g. 5.5',
@@ -966,7 +966,7 @@ class _ResultPageState extends State<ResultPage> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               prefixIcon:
-                              Icon(Icons.scale, color: primaryGreen),
+                                  Icon(Icons.scale, color: primaryGreen),
                             ),
                           ),
                         );
@@ -1005,7 +1005,7 @@ class _ResultPageState extends State<ResultPage> {
                           child: TextField(
                             controller: weightControllers[controllerKey],
                             keyboardType:
-                            TextInputType.numberWithOptions(decimal: true),
+                                TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: 'Enter $type weight (kg)',
                               hintText: 'e.g. 5.5',
@@ -1013,7 +1013,7 @@ class _ResultPageState extends State<ResultPage> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               prefixIcon:
-                              Icon(Icons.scale, color: primaryGreen),
+                                  Icon(Icons.scale, color: primaryGreen),
                             ),
                           ),
                         );
@@ -1036,11 +1036,11 @@ class _ResultPageState extends State<ResultPage> {
                           // Process household waste weights
                           if (specialDayData['household_waste'] != null) {
                             for (var type
-                            in specialDayData['household_waste']) {
+                                in specialDayData['household_waste']) {
                               final controllerKey = 'household_$type';
                               if (weightControllers[controllerKey]
-                                  ?.text
-                                  .isNotEmpty ??
+                                      ?.text
+                                      .isNotEmpty ??
                                   false) {
                                 householdWeights[type] = double.parse(
                                     weightControllers[controllerKey]!.text);
@@ -1051,11 +1051,11 @@ class _ResultPageState extends State<ResultPage> {
                           // Process commercial waste weights
                           if (specialDayData['commercial_waste'] != null) {
                             for (var type
-                            in specialDayData['commercial_waste']) {
+                                in specialDayData['commercial_waste']) {
                               final controllerKey = 'commercial_$type';
                               if (weightControllers[controllerKey]
-                                  ?.text
-                                  .isNotEmpty ??
+                                      ?.text
+                                      .isNotEmpty ??
                                   false) {
                                 commercialWeights[type] = double.parse(
                                     weightControllers[controllerKey]!.text);
@@ -1068,8 +1068,8 @@ class _ResultPageState extends State<ResultPage> {
                             for (var type in specialDayData['scrap_types']) {
                               final controllerKey = 'scrap_$type';
                               if (weightControllers[controllerKey]
-                                  ?.text
-                                  .isNotEmpty ??
+                                      ?.text
+                                      .isNotEmpty ??
                                   false) {
                                 scrapWeights[type] = double.parse(
                                     weightControllers[controllerKey]!.text);
@@ -1089,9 +1089,9 @@ class _ResultPageState extends State<ResultPage> {
                               'type': 'special_day',
                               'waste_type': specialDayData['type'],
                               'household_waste':
-                              specialDayData['household_waste'],
+                                  specialDayData['household_waste'],
                               'commercial_waste':
-                              specialDayData['commercial_waste'],
+                                  specialDayData['commercial_waste'],
                               'scrap_types': specialDayData['scrap_types'],
                               'household_waste_weights': householdWeights,
                               'commercial_waste_weights': commercialWeights,
@@ -1106,7 +1106,7 @@ class _ResultPageState extends State<ResultPage> {
                                 .add({
                               'user_id': specialDayData['userId'],
                               'message':
-                              'Your special ${specialDayData['type']} pickup has been completed successfully. Thank you for using our service!',
+                                  'Your special ${specialDayData['type']} pickup has been completed successfully. Thank you for using our service!',
                               'created_at': Timestamp.now(),
                               'read': false,
                               'type': 'special_pickup_completed'
@@ -1125,7 +1125,7 @@ class _ResultPageState extends State<ResultPage> {
                               CustomSnackbar.showSuccess(
                                 context: context,
                                 message:
-                                'Special day pickup confirmed successfully!',
+                                    'Special day pickup confirmed successfully!',
                               );
                             }
 
@@ -1138,7 +1138,7 @@ class _ResultPageState extends State<ResultPage> {
                               CustomSnackbar.showError(
                                 context: context,
                                 message:
-                                'Failed to confirm pickup. Please try again.',
+                                    'Failed to confirm pickup. Please try again.',
                               );
                             }
                           }
@@ -1268,7 +1268,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
   String? lastScannedValue;
   final Color primaryGreen = const Color(0xFF2E7D32);
   final DraggableScrollableController _dragController =
-  DraggableScrollableController();
+      DraggableScrollableController();
   late SharedPreferences prefs;
   List<String> scanHistory = [];
   bool isScanningEnabled = true;
@@ -1507,7 +1507,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
                                   color: Colors.grey[50],
                                   borderRadius: BorderRadius.circular(12),
                                   border:
-                                  Border.all(color: Colors.grey.shade200),
+                                      Border.all(color: Colors.grey.shade200),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1534,8 +1534,8 @@ class _QRScannerPageState extends State<QRScannerPage> {
                                       final parts = scan.split(' - ');
                                       final date = DateTime.parse(parts[0]);
                                       final formattedDate =
-                                      DateFormat('MMM d, HH:mm')
-                                          .format(date);
+                                          DateFormat('MMM d, HH:mm')
+                                              .format(date);
                                       return Padding(
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 4),
@@ -1696,7 +1696,7 @@ class _QRCodePageState extends State<QRCodePage> {
 
       // Store QR data in Firestore
       final qrDoc =
-      await FirebaseFirestore.instance.collection('qr_codes').add({
+          await FirebaseFirestore.instance.collection('qr_codes').add({
         ...qrInfo,
         'created_at': FieldValue.serverTimestamp(),
         'created_by': currentUser.uid,

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 
 class UpcomingPickUpPage extends StatefulWidget {
   @override
@@ -56,8 +57,8 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
         .collection('successful_pickups')
         .where('pickup_date', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
         .where('pickup_date',
-        isLessThanOrEqualTo:
-        Timestamp.fromDate(today.add(Duration(days: 1))))
+            isLessThanOrEqualTo:
+                Timestamp.fromDate(today.add(Duration(days: 1))))
         .get();
 
     setState(() {
@@ -81,8 +82,8 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
         .collection('missed_pickups')
         .where('missed_at', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
         .where('missed_at',
-        isLessThanOrEqualTo:
-        Timestamp.fromDate(today.add(Duration(days: 1))))
+            isLessThanOrEqualTo:
+                Timestamp.fromDate(today.add(Duration(days: 1))))
         .get();
 
     setState(() {
@@ -156,7 +157,7 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
           await FirebaseFirestore.instance.collection('notifications').add({
             'user_id': userId,
             'message':
-            'Your subscription will expire in 1 day. Please renew it.',
+                'Your subscription will expire in 1 day. Please renew it.',
             'created_at': Timestamp.now(),
             'read': false,
             'type': 'subscription_expiring'
@@ -176,7 +177,7 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
           await FirebaseFirestore.instance.collection('notifications').add({
             'user_id': userId,
             'message':
-            'Your subscription has expired. Please renew to continue enjoying our services.',
+                'Your subscription has expired. Please renew to continue enjoying our services.',
             'created_at': Timestamp.now(),
             'read': false,
             'type': 'subscription_expired'
@@ -215,12 +216,12 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
           Expanded(
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(20.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildSubscriptionPickups(),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20.h),
                     _buildSpecialDayPickups(),
                   ],
                 ),
@@ -236,58 +237,60 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
     return Container(
       decoration: BoxDecoration(
         color: primaryGreen,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30.r),
+          bottomRight: Radius.circular(30.r),
         ),
       ),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.w),
       child: SafeArea(
         child: Column(
           children: [
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon:
+                      Icon(Icons.arrow_back, color: Colors.white, size: 24.sp),
                   onPressed: () => Navigator.pop(context),
                 ),
                 Expanded(
                   child: Text(
                     'Upcoming Pick Up',
                     style: GoogleFonts.poppins(
-                      fontSize: 20,
+                      fontSize: 20.sp,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(width: 48),
+                SizedBox(width: 48.w),
               ],
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20.h),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16.w),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(15.r),
               ),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(12.w),
                     decoration: BoxDecoration(
                       color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
-                    child: Icon(Icons.calendar_today, color: primaryGreen),
+                    child: Icon(Icons.calendar_today,
+                        color: primaryGreen, size: 24.sp),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: 16.w),
                   Expanded(
                     child: Text(
                       'Upcoming Pickup',
                       style: GoogleFonts.poppins(
-                        fontSize: 18,
+                        fontSize: 18.sp,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -307,7 +310,7 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
       return Center(
         child: Text(
           'Please login to view your pickups',
-          style: GoogleFonts.poppins(),
+          style: GoogleFonts.poppins(fontSize: 14.sp),
         ),
       );
     }
@@ -334,11 +337,12 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
             Text(
               'Subscription Pickups',
               style: GoogleFonts.poppins(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12.h),
             ...snapshot.data!.docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
               return _buildSubscriptionCard(data, doc.id, context);
@@ -355,7 +359,7 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
       return Center(
         child: Text(
           'Please login to view your pickups',
-          style: GoogleFonts.poppins(),
+          style: GoogleFonts.poppins(fontSize: 14.sp),
         ),
       );
     }
@@ -369,7 +373,15 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: SizedBox(
+              width: 24.w,
+              height: 24.w,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.w,
+              ),
+            ),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -382,11 +394,11 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
             Text(
               'Special Day Pickups',
               style: GoogleFonts.poppins(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12.h),
             ...snapshot.data!.docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
               return _buildSpecialDayCard(data, doc.id, context);
@@ -408,63 +420,75 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
     final isWithinWindow = _isWithinPickupWindow(pickupTime);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: 16.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
-            blurRadius: 10,
+            blurRadius: 10.r,
           ),
         ],
       ),
       child: Column(
         children: [
           ListTile(
-            contentPadding: const EdgeInsets.all(16),
+            contentPadding: EdgeInsets.all(16.w),
             leading: Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12.r),
               ),
-              child: Icon(Icons.repeat, color: primaryGreen),
+              child: Icon(Icons.repeat, color: primaryGreen, size: 24.sp),
             ),
             title: Text(
               '$subscriptionType Subscription',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 16.sp,
+              ),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
+                SizedBox(height: 8.h),
                 Text(
                   'Pickup Time: $pickupTime',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey[600],
+                    fontSize: 14.sp,
+                  ),
                 ),
                 Text(
                   'Valid: ${DateFormat('MMM d').format(startDate)} - ${DateFormat('MMM d').format(endDate)}',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey[600],
+                    fontSize: 14.sp,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4.h),
                 Text(
                   data['pickup_address'],
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey[600],
+                    fontSize: 14.sp,
+                  ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1.h),
           if (isConfirmed)
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 16.w),
               color: Colors.green.shade50,
               child: Row(
                 children: [
-                  Icon(Icons.check_circle, color: Colors.green),
-                  SizedBox(width: 8),
+                  Icon(Icons.check_circle, color: Colors.green, size: 20.sp),
+                  SizedBox(width: 8.w),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,13 +498,14 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
                           style: GoogleFonts.poppins(
                             color: Colors.green,
                             fontWeight: FontWeight.w500,
+                            fontSize: 14.sp,
                           ),
                         ),
                         Text(
                           'Next pickup scheduled for tomorrow at $pickupTime',
                           style: GoogleFonts.poppins(
                             color: Colors.grey[600],
-                            fontSize: 12,
+                            fontSize: 12.sp,
                           ),
                         ),
                       ],
@@ -491,12 +516,13 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
             )
           else if (isPickupMissedForToday(docId))
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 16.w),
               color: Colors.orange.shade50,
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                  SizedBox(width: 8),
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange, size: 20.sp),
+                  SizedBox(width: 8.w),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,13 +532,14 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
                           style: GoogleFonts.poppins(
                             color: Colors.orange[800],
                             fontWeight: FontWeight.w500,
+                            fontSize: 14.sp,
                           ),
                         ),
                         Text(
                           'Next pickup scheduled for tomorrow at $pickupTime',
                           style: GoogleFonts.poppins(
                             color: Colors.grey[600],
-                            fontSize: 12,
+                            fontSize: 12.sp,
                           ),
                         ),
                       ],
@@ -522,104 +549,144 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
               ),
             )
           else if (isCancelled)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                color: Colors.red.shade50,
-                child: Row(
-                  children: [
-                    Icon(Icons.cancel, color: Colors.red),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Today\'s pickup is cancelled',
-                            style: GoogleFonts.poppins(
-                              color: Colors.red,
-                              fontWeight: FontWeight.w500,
-                            ),
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 16.w),
+              color: Colors.red.shade50,
+              child: Row(
+                children: [
+                  Icon(Icons.cancel, color: Colors.red, size: 20.sp),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Today\'s pickup is cancelled',
+                          style: GoogleFonts.poppins(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14.sp,
                           ),
-                          Text(
-                            'Service will resume tomorrow at $pickupTime',
-                            style: GoogleFonts.poppins(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
+                        ),
+                        Text(
+                          'Service will resume tomorrow at $pickupTime',
+                          style: GoogleFonts.poppins(
+                            color: Colors.grey[600],
+                            fontSize: 12.sp,
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: isCancelled
+                        ? null
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TrackPickUpPage(
+                                  pickupId: docId,
+                                  collectionName: 'subscription_details',
+                                ),
+                              ),
+                            );
+                          },
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
                       ),
                     ),
-                  ],
-                ),
-              ),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: isCancelled
-                      ? null
-                      : () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => TrackPickUpPage(
-                          pickupId: docId,
-                          collectionName: 'subscription_details',
-                        ),
+                    icon: Icon(
+                      Icons.location_on,
+                      color: isCancelled ? Colors.grey : primaryGreen,
+                      size: 20.sp,
+                    ),
+                    label: Text(
+                      'Track',
+                      style: GoogleFonts.poppins(
+                        color: isCancelled ? Colors.grey : primaryGreen,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
                       ),
-                    );
-                  },
-                  icon: Icon(Icons.location_on,
-                      color: isCancelled ? Colors.grey : primaryGreen),
-                  label: Text(
-                    'Track',
-                    style: GoogleFonts.poppins(
-                        color: isCancelled ? Colors.grey : primaryGreen),
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 48,
-                color: Colors.grey.shade200,
-              ),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: isCancelled
-                      ? null
-                      : () => _showChangePickupTimeDialog(
-                      context, docId, pickupTime),
-                  icon: Icon(Icons.access_time,
-                      color: isCancelled ? Colors.grey : primaryGreen),
-                  label: Text(
-                    'Change Time',
-                    style: GoogleFonts.poppins(
-                        color: isCancelled ? Colors.grey : primaryGreen),
+                Container(
+                  width: 1.w,
+                  height: 36.h,
+                  color: Colors.grey.shade200,
+                ),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: isCancelled
+                        ? null
+                        : () => _showChangePickupTimeDialog(
+                            context, docId, pickupTime),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                    ),
+                    icon: Icon(
+                      Icons.access_time,
+                      color: isCancelled ? Colors.grey : primaryGreen,
+                      size: 20.sp,
+                    ),
+                    label: Text(
+                      'Change Time',
+                      style: GoogleFonts.poppins(
+                        color: isCancelled ? Colors.grey : primaryGreen,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 48,
-                color: Colors.grey.shade200,
-              ),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: isCancelled
-                      ? null
-                      : () => _showCancelDialog(
-                      context, docId, 'subscription_details'),
-                  icon: Icon(Icons.cancel_outlined,
-                      color: isCancelled ? Colors.grey : Colors.red),
-                  label: Text(
-                    'Cancel',
-                    style: GoogleFonts.poppins(
-                        color: isCancelled ? Colors.grey : Colors.red),
+                Container(
+                  width: 1.w,
+                  height: 36.h,
+                  color: Colors.grey.shade200,
+                ),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: isCancelled
+                        ? null
+                        : () => _showCancelDialog(
+                            context, docId, 'subscription_details'),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                    ),
+                    icon: Icon(
+                      Icons.cancel_outlined,
+                      color: isCancelled ? Colors.grey : Colors.red,
+                      size: 20.sp,
+                    ),
+                    label: Text(
+                      'Cancel',
+                      style: GoogleFonts.poppins(
+                        color: isCancelled ? Colors.grey : Colors.red,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -633,72 +700,86 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
     final type = data['type'] as String;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: 16.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
-            blurRadius: 10,
+            blurRadius: 10.r,
           ),
         ],
       ),
       child: Column(
         children: [
           ListTile(
-            contentPadding: const EdgeInsets.all(16),
+            contentPadding: EdgeInsets.all(16.w),
             leading: Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12.r),
               ),
               child: Icon(
                 type == 'waste' ? Icons.delete : Icons.recycling,
                 color: primaryGreen,
+                size: 24.sp,
               ),
             ),
             title: Text(
               'Special ${type.capitalize()} Pickup',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 16.sp,
+              ),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
+                SizedBox(height: 8.h),
                 Text(
                   'Date: ${DateFormat('MMM d, yyyy').format(pickupDate)}',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey[600],
+                    fontSize: 14.sp,
+                  ),
                 ),
                 Text(
                   'Time: $pickupTime',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey[600],
+                    fontSize: 14.sp,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4.h),
                 Text(
                   data['pickup_address'],
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey[600],
+                    fontSize: 14.sp,
+                  ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1.h),
           if (isPickupConfirmedForToday(docId))
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 16.w),
               color: Colors.green.shade50,
               child: Row(
                 children: [
-                  Icon(Icons.check_circle, color: Colors.green),
-                  SizedBox(width: 8),
+                  Icon(Icons.check_circle, color: Colors.green, size: 20.sp),
+                  SizedBox(width: 8.w),
                   Expanded(
                     child: Text(
                       'Special day pickup is confirmed',
                       style: GoogleFonts.poppins(
                         color: Colors.green,
                         fontWeight: FontWeight.w500,
+                        fontSize: 14.sp,
                       ),
                     ),
                   ),
@@ -707,18 +788,20 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
             )
           else if (isPickupMissedForToday(docId))
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 16.w),
               color: Colors.orange.shade50,
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                  SizedBox(width: 8),
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange, size: 20.sp),
+                  SizedBox(width: 8.w),
                   Expanded(
                     child: Text(
                       'Special day pickup was missed',
                       style: GoogleFonts.poppins(
                         color: Colors.orange[800],
                         fontWeight: FontWeight.w500,
+                        fontSize: 14.sp,
                       ),
                     ),
                   ),
@@ -726,65 +809,98 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
               ),
             )
           else if (!_isWithinPickupWindow(pickupTime) &&
-                DateTime.now().isAfter(pickupDate))
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                color: Colors.orange.shade50,
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Special day pickup was missed',
-                        style: GoogleFonts.poppins(
-                          color: Colors.orange[800],
-                          fontWeight: FontWeight.w500,
-                        ),
+              DateTime.now().isAfter(pickupDate))
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 16.w),
+              color: Colors.orange.shade50,
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange, size: 20.sp),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: Text(
+                      'Special day pickup was missed',
+                      style: GoogleFonts.poppins(
+                        color: Colors.orange[800],
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14.sp,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => TrackPickUpPage(
-                          pickupId: docId,
-                          collectionName: 'special_day_details',
+            ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TrackPickUpPage(
+                            pickupId: docId,
+                            collectionName: 'special_day_details',
+                          ),
                         ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
                       ),
-                    );
-                  },
-                  icon: Icon(Icons.location_on, color: primaryGreen),
-                  label: Text(
-                    'Track',
-                    style: GoogleFonts.poppins(color: primaryGreen),
+                    ),
+                    icon: Icon(
+                      Icons.location_on,
+                      color: primaryGreen,
+                      size: 20.sp,
+                    ),
+                    label: Text(
+                      'Track',
+                      style: GoogleFonts.poppins(
+                        color: primaryGreen,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 48,
-                color: Colors.grey.shade200,
-              ),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () =>
-                      _showCancelDialog(context, docId, 'special_day_details'),
-                  icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                  label: Text(
-                    'Cancel',
-                    style: GoogleFonts.poppins(color: Colors.red),
+                Container(
+                  width: 1.w,
+                  height: 36.h,
+                  color: Colors.grey.shade200,
+                ),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => _showCancelDialog(
+                        context, docId, 'special_day_details'),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                    ),
+                    icon: Icon(
+                      Icons.cancel_outlined,
+                      color: Colors.red,
+                      size: 20.sp,
+                    ),
+                    label: Text(
+                      'Cancel',
+                      style: GoogleFonts.poppins(
+                        color: Colors.red,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -806,7 +922,10 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
         if (newTime.hour < 7 || newTime.hour > 23) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Please select a time between 7 AM and 11 PM.'),
+              content: Text(
+                'Please select a time between 7 AM and 11 PM.',
+                style: GoogleFonts.poppins(fontSize: 14.sp),
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -853,24 +972,30 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(15.r),
           ),
           title: Text(
             'Cancel Pickup',
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.bold,
+              fontSize: 18.sp,
             ),
           ),
           content: Text(
             message,
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.poppins(
+              fontSize: 14.sp,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
                 'No, Keep it',
-                style: GoogleFonts.poppins(color: Colors.grey),
+                style: GoogleFonts.poppins(
+                  color: Colors.grey,
+                  fontSize: 14.sp,
+                ),
               ),
             ),
             ElevatedButton(
@@ -906,12 +1031,15 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
               ),
               child: Text(
                 'Yes, Cancel',
-                style: GoogleFonts.poppins(color: Colors.white),
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 14.sp,
+                ),
               ),
             ),
           ],
@@ -927,7 +1055,10 @@ class _UpcomingPickUpPageState extends State<UpcomingPickUpPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: GoogleFonts.poppins(fontSize: 14.sp),
+        ),
         backgroundColor: Colors.green,
       ),
     );
@@ -959,6 +1090,9 @@ class NotificationUtils {
         channelKey: 'subscription_channel',
         title: 'Subscription Expiration Reminder',
         body: 'Your subscription will expire in 1 day. Please renew it.',
+        notificationLayout: NotificationLayout.Default,
+        displayOnBackground: true,
+        displayOnForeground: true,
       ),
     );
   }
@@ -970,7 +1104,10 @@ class NotificationUtils {
         channelKey: 'subscription_channel',
         title: 'Subscription Deactivated',
         body:
-        'Your subscription has expired. Please renew to continue enjoying our services.',
+            'Your subscription has expired. Please renew to continue enjoying our services.',
+        notificationLayout: NotificationLayout.Default,
+        displayOnBackground: true,
+        displayOnForeground: true,
       ),
     );
   }

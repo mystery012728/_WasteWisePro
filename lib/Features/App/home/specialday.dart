@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutternew/Features/App/home/subscription.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 
 class SpecialDaysPage extends StatefulWidget {
   const SpecialDaysPage({super.key});
@@ -88,21 +89,21 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
       bool hasWeight = false;
       householdWasteWeights.forEach((type, weight) {
         if (householdWasteSelection[[
-          'Mix waste (Wet & Dry)',
-          'Wet Waste',
-          'Dry Waste'
-        ].indexOf(type)] &&
+              'Mix waste (Wet & Dry)',
+              'Wet Waste',
+              'Dry Waste'
+            ].indexOf(type)] &&
             weight > 0) {
           hasWeight = true;
         }
       });
       commercialWasteWeights.forEach((type, weight) {
         if (commercialWasteSelection[[
-          'Restaurant',
-          'Meat & Vegetable Stall',
-          'Plastic Waste',
-          'Others'
-        ].indexOf(type)] &&
+              'Restaurant',
+              'Meat & Vegetable Stall',
+              'Plastic Waste',
+              'Others'
+            ].indexOf(type)] &&
             weight > 0) {
           hasWeight = true;
         }
@@ -195,11 +196,11 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         // Create a document reference for special day details
         DocumentReference specialDayRef =
-        FirebaseFirestore.instance.collection('special_day_details').doc();
+            FirebaseFirestore.instance.collection('special_day_details').doc();
 
         // Create a document reference for upcoming pickup
         DocumentReference pickupRef =
-        FirebaseFirestore.instance.collection('upcoming_pickups').doc();
+            FirebaseFirestore.instance.collection('upcoming_pickups').doc();
 
         // Add waste-specific or scrap-specific data
         if (isWasteSelected) {
@@ -398,28 +399,48 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
         return AlertDialog(
           title: Text(
             'Select Address Option',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              fontSize: 18.sp,
+            ),
           ),
           content: FutureBuilder<List<Map<String, dynamic>>>(
             future: _fetchUserAddresses(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.w,
+                  ),
+                );
               } else if (snapshot.hasError) {
-                return Text('Error loading addresses: ${snapshot.error}');
+                return Text(
+                  'Error loading addresses: ${snapshot.error}',
+                  style: GoogleFonts.poppins(fontSize: 14.sp),
+                );
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ListTile(
-                      leading: Icon(Icons.home, color: primaryGreen),
-                      title: Text('No saved addresses found'),
-                      subtitle: Text('Please add a new address'),
+                      leading:
+                          Icon(Icons.home, color: primaryGreen, size: 24.sp),
+                      title: Text(
+                        'No saved addresses found',
+                        style: GoogleFonts.poppins(fontSize: 14.sp),
+                      ),
+                      subtitle: Text(
+                        'Please add a new address',
+                        style: GoogleFonts.poppins(fontSize: 12.sp),
+                      ),
                     ),
                     ListTile(
-                      leading:
-                      Icon(Icons.add_location_alt, color: primaryGreen),
-                      title: Text('Add New Address'),
+                      leading: Icon(Icons.add_location_alt,
+                          color: primaryGreen, size: 24.sp),
+                      title: Text(
+                        'Add New Address',
+                        style: GoogleFonts.poppins(fontSize: 14.sp),
+                      ),
                       onTap: () {
                         Navigator.pop(context);
                         _showAddressScreen();
@@ -441,35 +462,47 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                           children: [
                             ...snapshot.data!
                                 .map((addressData) => ListTile(
-                              leading:
-                              Icon(Icons.home, color: primaryGreen),
-                              title: Text(
-                                  addressData['name'] ?? 'Full Name'),
-                              subtitle: Column(
-                                crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                                children: [
-                                  Text(addressData['mobile'] ??
-                                      'Mobile'),
-                                  Text(addressData['address'] ??
-                                      'Address'),
-                                ],
-                              ),
-                              onTap: () {
-                                setState(() {
-                                  isCurrentLocation = false;
-                                  pickupAddress =
-                                  '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
-                                });
-                                Navigator.pop(context);
-                              },
-                            ))
+                                      leading: Icon(Icons.home,
+                                          color: primaryGreen, size: 24.sp),
+                                      title: Text(
+                                        addressData['name'] ?? 'Name',
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 14.sp),
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            addressData['mobile'] ?? 'Mobile',
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 12.sp),
+                                          ),
+                                          Text(
+                                            addressData['address'] ?? 'Address',
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 12.sp),
+                                          ),
+                                        ],
+                                      ),
+                                      onTap: () {
+                                        setState(() {
+                                          isCurrentLocation = false;
+                                          pickupAddress =
+                                              '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
+                                        });
+                                        Navigator.pop(context);
+                                      },
+                                    ))
                                 .toList(),
-                            const Divider(),
+                            Divider(height: 1.h),
                             ListTile(
                               leading: Icon(Icons.add_location_alt,
-                                  color: primaryGreen),
-                              title: Text('Add New Address'),
+                                  color: primaryGreen, size: 24.sp),
+                              title: Text(
+                                'Add New Address',
+                                style: GoogleFonts.poppins(fontSize: 14.sp),
+                              ),
                               onTap: () {
                                 Navigator.pop(context);
                                 _showAddressScreen();
@@ -542,7 +575,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                 setState(() {
                   isCurrentLocation = false;
                   pickupAddress =
-                  '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
+                      '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
                 });
 
                 if (mounted) {
@@ -621,52 +654,53 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.r),
+          ),
           child: Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20.w),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.check_circle_outline,
                   color: Colors.green,
-                  size: 70,
+                  size: 70.sp,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20.h),
                 Text(
                   'Pickup Scheduled!',
                   style: GoogleFonts.poppins(
-                    fontSize: 20,
+                    fontSize: 20.sp,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10.h),
                 Text(
                   'Your pickup request has been scheduled successfully.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
+                    fontSize: 14.sp,
                     color: Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20.h),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (context) => const home()),
-                          (Route<dynamic> route) => false,
+                      (Route<dynamic> route) => false,
                     );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(10.r),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 15,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 40.w,
+                      vertical: 15.h,
                     ),
                   ),
                   child: Text(
@@ -674,6 +708,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                     style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontWeight: FontWeight.w500,
+                      fontSize: 16.sp,
                     ),
                   ),
                 ),
@@ -687,6 +722,9 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -694,6 +732,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 18.sp,
           ),
         ),
         centerTitle: true,
@@ -706,23 +745,23 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
             Container(
               decoration: BoxDecoration(
                 color: primaryGreen,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(30.r),
+                  bottomRight: Radius.circular(30.r),
                 ),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.w),
               child: Column(
                 children: [
                   Text(
                     'Choose Pickup Type',
                     style: GoogleFonts.poppins(
-                      fontSize: 24,
+                      fontSize: 24.sp,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20.h),
                   Row(
                     children: [
                       Expanded(
@@ -732,7 +771,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                           Icons.delete_outline,
                         ),
                       ),
-                      const SizedBox(width: 15),
+                      SizedBox(width: 15.w),
                       Expanded(
                         child: _buildTypeButton(
                           'Scrap',
@@ -746,7 +785,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -754,9 +793,9 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                     _buildWasteSection()
                   else
                     _buildScrapSection(),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20.h),
                   _buildDateTimePicker(),
-                  const SizedBox(height: 30),
+                  SizedBox(height: 30.h),
                   _buildContinueButton(),
                 ],
               ),
@@ -774,13 +813,13 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
         isWasteSelected = isWaste;
       }),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+        padding: EdgeInsets.symmetric(vertical: 15.h, horizontal: 20.w),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(15.r),
           border: Border.all(
             color: isSelected ? primaryGreen : Colors.transparent,
-            width: 2,
+            width: 2.w,
           ),
         ),
         child: Column(
@@ -788,14 +827,15 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
             Icon(
               icon,
               color: isSelected ? primaryGreen : Colors.white,
-              size: 30,
+              size: 30.sp,
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10.h),
             Text(
               title,
               style: GoogleFonts.poppins(
                 color: isSelected ? primaryGreen : Colors.white,
                 fontWeight: FontWeight.w600,
+                fontSize: 14.sp,
               ),
             ),
           ],
@@ -811,37 +851,39 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
         Text(
           'Waste Types',
           style: GoogleFonts.poppins(
-            fontSize: 18,
+            fontSize: 18.sp,
             fontWeight: FontWeight.bold,
             color: primaryGreen,
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10.h),
         _buildWasteTypeContainer(
           'Household Waste',
           ['Mix waste (Wet & Dry)', 'Wet Waste', 'Dry Waste'],
           householdWasteSelection,
+          householdWasteWeights,
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
         _buildWasteTypeContainer(
           'Commercial Waste',
           ['Restaurant', 'Meat & Vegetable Stall', 'Plastic Waste', 'Others'],
           commercialWasteSelection,
+          commercialWasteWeights,
         ),
       ],
     );
   }
 
   Widget _buildWasteTypeContainer(
-      String title, List<String> options, List<bool> selections) {
-    Map<String, double> weights = title == 'Household Waste'
-        ? householdWasteWeights
-        : commercialWasteWeights;
-
+    String title,
+    List<String> options,
+    List<bool> selections,
+    Map<String, double> weights,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -854,29 +896,35 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(15),
+            padding: EdgeInsets.all(15.w),
             child: Text(
               title,
               style: GoogleFonts.poppins(
-                fontSize: 16,
+                fontSize: 16.sp,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           ...List.generate(
             options.length,
-                (index) => Container(
-              margin: const EdgeInsets.only(bottom: 10),
+            (index) => Container(
+              margin: EdgeInsets.only(bottom: 10.h),
               child: Column(
                 children: [
                   CheckboxListTile(
                     title: Text(
                       options[index],
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14.sp,
+                      ),
                     ),
                     subtitle: Text(
                       '₹20/kg',
-                      style: GoogleFonts.poppins(color: Colors.grey.shade600),
+                      style: GoogleFonts.poppins(
+                        color: Colors.grey.shade600,
+                        fontSize: 12.sp,
+                      ),
                     ),
                     value: selections[index],
                     onChanged: (value) {
@@ -891,21 +939,23 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                   ),
                   if (selections[index])
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
+                      padding: EdgeInsets.fromLTRB(15.w, 0, 15.w, 15.h),
                       child: Column(
                         children: [
                           TextField(
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
                               hintText: 'Enter weight in kg',
+                              hintStyle: GoogleFonts.poppins(fontSize: 14.sp),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(10.r),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(10.r),
                                 borderSide: BorderSide(color: primaryGreen),
                               ),
                             ),
+                            style: GoogleFonts.poppins(fontSize: 14.sp),
                             onChanged: (value) {
                               setState(() {
                                 weights[options[index]] =
@@ -915,7 +965,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                           ),
                           if (weights[options[index]]! > 0)
                             Padding(
-                              padding: const EdgeInsets.only(top: 8),
+                              padding: EdgeInsets.only(top: 8.h),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
@@ -924,6 +974,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                                     style: GoogleFonts.poppins(
                                       color: primaryGreen,
                                       fontWeight: FontWeight.w500,
+                                      fontSize: 14.sp,
                                     ),
                                   ),
                                 ],
@@ -948,76 +999,78 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
         Text(
           'Normal Recyclables',
           style: GoogleFonts.poppins(
-            fontSize: 18,
+            fontSize: 18.sp,
             fontWeight: FontWeight.bold,
             color: primaryGreen,
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10.h),
         ...scrapPrices.entries
             .map((entry) => Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 10,
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              CheckboxListTile(
-                title: Text(
-                  entry.key,
-                  style:
-                  GoogleFonts.poppins(fontWeight: FontWeight.w500),
-                ),
-                subtitle: Text(
-                  '₹${entry.value}/kg',
-                  style:
-                  GoogleFonts.poppins(color: Colors.grey.shade600),
-                ),
-                value: selectedScrapTypes[entry.key],
-                onChanged: (value) {
-                  setState(() {
-                    selectedScrapTypes[entry.key] = value ?? false;
-                    if (!value!) {
-                      scrapWeights[entry.key] = 0;
-                    }
-                  });
-                },
-                activeColor: primaryGreen,
-              ),
-              if (selectedScrapTypes[entry.key]!)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
-                  child: TextField(
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: 'Enter weight in kg',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  margin: EdgeInsets.only(bottom: 10.h),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 10,
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: primaryGreen),
-                      ),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        scrapWeights[entry.key] =
-                            double.tryParse(value) ?? 0;
-                      });
-                    },
+                    ],
                   ),
-                ),
-            ],
-          ),
-        ))
+                  child: Column(
+                    children: [
+                      CheckboxListTile(
+                        title: Text(
+                          entry.key,
+                          style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w500, fontSize: 14.sp),
+                        ),
+                        subtitle: Text(
+                          '₹${entry.value}/kg',
+                          style: GoogleFonts.poppins(
+                              color: Colors.grey.shade600, fontSize: 12.sp),
+                        ),
+                        value: selectedScrapTypes[entry.key],
+                        onChanged: (value) {
+                          setState(() {
+                            selectedScrapTypes[entry.key] = value ?? false;
+                            if (!value!) {
+                              scrapWeights[entry.key] = 0;
+                            }
+                          });
+                        },
+                        activeColor: primaryGreen,
+                      ),
+                      if (selectedScrapTypes[entry.key]!)
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(15.w, 0, 15.w, 15.h),
+                          child: TextField(
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: 'Enter weight in kg',
+                              hintStyle: GoogleFonts.poppins(fontSize: 14.sp),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.r),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.r),
+                                borderSide: BorderSide(color: primaryGreen),
+                              ),
+                            ),
+                            style: GoogleFonts.poppins(fontSize: 14.sp),
+                            onChanged: (value) {
+                              setState(() {
+                                scrapWeights[entry.key] =
+                                    double.tryParse(value) ?? 0;
+                              });
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ))
             .toList(),
       ],
     );
@@ -1027,7 +1080,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -1051,16 +1104,20 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
               }
             },
             leading: Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(10.w),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.r),
               ),
-              child: Icon(Icons.calendar_today, color: primaryGreen),
+              child:
+                  Icon(Icons.calendar_today, color: primaryGreen, size: 24.sp),
             ),
             title: Text(
               'Pickup Date',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+                fontSize: 16.sp,
+              ),
             ),
             subtitle: Text(
               selectedDate != null
@@ -1070,10 +1127,11 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                 color: selectedDate != null
                     ? Colors.black87
                     : Colors.grey.shade600,
+                fontSize: 14.sp,
               ),
             ),
           ),
-          Divider(color: Colors.grey.shade200),
+          Divider(color: Colors.grey.shade200, height: 1.h),
           ListTile(
             onTap: () async {
               final TimeOfDay? picked = await showTimePicker(
@@ -1085,16 +1143,19 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
               }
             },
             leading: Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(10.w),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.r),
               ),
-              child: Icon(Icons.access_time, color: primaryGreen),
+              child: Icon(Icons.access_time, color: primaryGreen, size: 24.sp),
             ),
             title: Text(
               'Pickup Time',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+                fontSize: 16.sp,
+              ),
             ),
             subtitle: Text(
               selectedTime != null
@@ -1104,23 +1165,27 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                 color: selectedTime != null
                     ? Colors.black87
                     : Colors.grey.shade600,
+                fontSize: 14.sp,
               ),
             ),
           ),
-          Divider(color: Colors.grey.shade200),
+          Divider(color: Colors.grey.shade200, height: 1.h),
           ListTile(
             onTap: _showAddressDialog,
             leading: Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(10.w),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.r),
               ),
-              child: Icon(Icons.location_on, color: primaryGreen),
+              child: Icon(Icons.location_on, color: primaryGreen, size: 24.sp),
             ),
             title: Text(
               'Pickup Address',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+                fontSize: 16.sp,
+              ),
             ),
             subtitle: Text(
               pickupAddress ?? 'Enter pickup address',
@@ -1128,6 +1193,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
                 color: pickupAddress != null
                     ? Colors.black87
                     : Colors.grey.shade600,
+                fontSize: 14.sp,
               ),
             ),
           ),
@@ -1140,7 +1206,7 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
     double totalPrice = calculateTotalPrice();
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: EdgeInsets.only(bottom: 20.h),
       child: ElevatedButton(
         onPressed: () {
           if (_validateForm()) {
@@ -1157,16 +1223,16 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryGreen,
-          padding: const EdgeInsets.symmetric(vertical: 15),
+          padding: EdgeInsets.symmetric(vertical: 15.h),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(15.r),
           ),
           elevation: 2,
         ),
         child: Text(
           'Continue - ₹${totalPrice.toStringAsFixed(2)}',
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),

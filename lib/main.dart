@@ -2,7 +2,7 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 import 'package:flutternew/Features/App/notification/background_service.dart';
 import 'package:flutternew/Features/App/splash_screen/welcome.dart';
 import 'package:provider/provider.dart';
@@ -12,11 +12,15 @@ import 'Features/App/splash_screen/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize notifications
   await AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
     if (!isAllowed) {
       AwesomeNotifications().requestPermissionToSendNotifications();
     }
   });
+
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: FirebaseOptions(
       apiKey: "AIzaSyBoEfynFgftXEWeTKigDaWS0FK1Zczk1rY",
@@ -25,7 +29,11 @@ void main() async {
       projectId: "wastewisepro",
     ),
   );
+
+  // Initialize background service
   await BackgroundService.initialize();
+
+  // Configure notification channels
   AwesomeNotifications().initialize(
     'resource://drawable/res_notification_app_icon',
     [
@@ -40,6 +48,7 @@ void main() async {
     ],
   );
 
+  // Run the app with provider
   runApp(
     ChangeNotifierProvider(
       create: (context) => CartProvider(),
@@ -49,22 +58,45 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
+  MyApp({Key? key}) : super(key: key);
+
+  final FirebaseAuth auth = FirebaseAuth.instance;
+
   @override
-  FirebaseAuth auth = FirebaseAuth.instance;
   Widget build(BuildContext context) {
     return ScreenUtilInit(
-      builder: (context, child) => MaterialApp(
-        title: 'WasteWisePro',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(primarySwatch: Colors.green),
-        home: auth.currentUser != null
-            ? const SplashScreen(child: home())
-            : SplashScreen(child: welcome()),
-        //OrderTrackingPage()
-      ),
-      designSize: const Size(360, 690),
-      splitScreenMode: true,
-      minTextAdapt: true,
+      designWidth: 360,
+      designHeight: 690,
+      builder: (context, child) {
+        return MaterialApp(
+          title: 'WasteWisePro',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            primarySwatch: Colors.green,
+          ),
+          builder: (context, widget) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+              child: widget!,
+            );
+          },
+          home: FutureBuilder(
+            future: Future.delayed(Duration.zero),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done) {
+                return auth.currentUser != null
+                    ? const SplashScreen(child: home())
+                    : SplashScreen(child: welcome());
+              }
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

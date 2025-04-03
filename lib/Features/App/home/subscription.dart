@@ -7,6 +7,7 @@ import 'package:flutternew/Features/App/home/upcomingpickup.dart';
 import 'package:flutternew/Features/App/payment/razer_pay.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutternew/Features/App/home/home.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -160,7 +161,7 @@ class _AddressScreenState extends State<AddressScreen> {
                   decoration: _buildInputDecoration('Full Name'),
                   style: GoogleFonts.poppins(),
                   validator: (value) =>
-                  value?.isEmpty ?? true ? 'Please enter your name' : null,
+                      value?.isEmpty ?? true ? 'Please enter your name' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -189,10 +190,10 @@ class _AddressScreenState extends State<AddressScreen> {
                 TextFormField(
                   controller: _roadController,
                   decoration:
-                  _buildInputDecoration('Road Name / Area / Colony'),
+                      _buildInputDecoration('Road Name / Area / Colony'),
                   style: GoogleFonts.poppins(),
                   validator: (value) =>
-                  value?.isEmpty ?? true ? 'Please enter road name' : null,
+                      value?.isEmpty ?? true ? 'Please enter road name' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -230,9 +231,9 @@ class _AddressScreenState extends State<AddressScreen> {
                             readOnly: true,
                             enabled: !_isLoading,
                             validator: (value) =>
-                            _city == null || _city!.isEmpty
-                                ? 'Please enter valid pincode to get city'
-                                : null,
+                                _city == null || _city!.isEmpty
+                                    ? 'Please enter valid pincode to get city'
+                                    : null,
                           ),
                           if (_isLoading)
                             Positioned(
@@ -354,7 +355,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
 
     if (snapshot.docs.isNotEmpty) {
       final activeSubscription =
-      snapshot.docs.first.data() as Map<String, dynamic>;
+          snapshot.docs.first.data() as Map<String, dynamic>;
       final endDate = (activeSubscription['end_date'] as Timestamp).toDate();
       final daysLeft = endDate.difference(DateTime.now()).inDays;
 
@@ -362,7 +363,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         isSubscriptionActive = true;
         subscriptionEndDate = endDate;
         activeSubscriptionType =
-        activeSubscription['subscription_type'] as String;
+            activeSubscription['subscription_type'] as String;
       });
 
       // Check if subscription is about to expire (3 days before)
@@ -371,7 +372,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         await FirebaseFirestore.instance.collection('notifications').add({
           'user_id': FirebaseAuth.instance.currentUser?.uid,
           'message':
-          'Your $activeSubscriptionType subscription will expire in $daysLeft ${daysLeft == 1 ? 'day' : 'days'}. Please renew to continue our services.',
+              'Your $activeSubscriptionType subscription will expire in $daysLeft ${daysLeft == 1 ? 'day' : 'days'}. Please renew to continue our services.',
           'created_at': Timestamp.now(),
           'read': false,
           'type': 'subscription_expiring'
@@ -499,7 +500,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
 
       DateTime endDate;
       double totalPrice =
-      isMonthlySelected ? monthlyPrice * monthsCount : weeklyPrice;
+          isMonthlySelected ? monthlyPrice * monthsCount : weeklyPrice;
 
       if (isMonthlySelected) {
         endDate = selectedStartDate!.add(Duration(days: monthsCount * 30));
@@ -545,11 +546,11 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         // Create a document reference for subscription details
         DocumentReference subscriptionRef =
-        FirebaseFirestore.instance.collection('subscription_details').doc();
+            FirebaseFirestore.instance.collection('subscription_details').doc();
 
         // Create a document reference for upcoming pickup
         DocumentReference pickupRef =
-        FirebaseFirestore.instance.collection('upcoming_pickups').doc();
+            FirebaseFirestore.instance.collection('upcoming_pickups').doc();
 
         // Set data for subscription details with userId
         transaction.set(subscriptionRef, {
@@ -597,11 +598,11 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
 
         // Create notification for subscription activation
         DocumentReference notificationRef =
-        FirebaseFirestore.instance.collection('notifications').doc();
+            FirebaseFirestore.instance.collection('notifications').doc();
         transaction.set(notificationRef, {
           'user_id': currentUser.uid,
           'message':
-          'Your ${isMonthlySelected ? "Monthly" : "Weekly"} subscription has been activated successfully! Your first pickup is scheduled for ${DateFormat('MMM d, yyyy').format(selectedStartDate!)} at ${selectedPickUpTime?.format(context)}.',
+              'Your ${isMonthlySelected ? "Monthly" : "Weekly"} subscription has been activated successfully! Your first pickup is scheduled for ${DateFormat('MMM d, yyyy').format(selectedStartDate!)} at ${selectedPickUpTime?.format(context)}.',
           'created_at': FieldValue.serverTimestamp(),
           'read': false,
           'type': 'subscription_activated'
@@ -670,7 +671,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                     ),
                     ListTile(
                       leading:
-                      Icon(Icons.add_location_alt, color: primaryGreen),
+                          Icon(Icons.add_location_alt, color: primaryGreen),
                       title: Text('Add New Address'),
                       onTap: () {
                         Navigator.pop(context);
@@ -693,29 +694,29 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                           children: [
                             ...snapshot.data!
                                 .map((addressData) => ListTile(
-                              leading:
-                              Icon(Icons.home, color: primaryGreen),
-                              title:
-                              Text(addressData['name'] ?? 'Name'),
-                              subtitle: Column(
-                                crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                                children: [
-                                  Text(addressData['mobile'] ??
-                                      'Mobile'),
-                                  Text(addressData['address'] ??
-                                      'Address'),
-                                ],
-                              ),
-                              onTap: () {
-                                setState(() {
-                                  isCurrentLocation = false;
-                                  pickupAddress =
-                                  '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
-                                });
-                                Navigator.pop(context);
-                              },
-                            ))
+                                      leading:
+                                          Icon(Icons.home, color: primaryGreen),
+                                      title:
+                                          Text(addressData['name'] ?? 'Name'),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(addressData['mobile'] ??
+                                              'Mobile'),
+                                          Text(addressData['address'] ??
+                                              'Address'),
+                                        ],
+                                      ),
+                                      onTap: () {
+                                        setState(() {
+                                          isCurrentLocation = false;
+                                          pickupAddress =
+                                              '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
+                                        });
+                                        Navigator.pop(context);
+                                      },
+                                    ))
                                 .toList(),
                             const Divider(),
                             ListTile(
@@ -763,7 +764,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                 setState(() {
                   isCurrentLocation = false;
                   pickupAddress =
-                  '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
+                      '${addressData['name']} - ${addressData['mobile']}\n${addressData['address']}';
                 });
 
                 if (mounted) {
@@ -821,8 +822,10 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
     double totalPrice =
-    isMonthlySelected ? monthlyPrice * monthsCount : weeklyPrice;
+        isMonthlySelected ? monthlyPrice * monthsCount : weeklyPrice;
 
     return Scaffold(
       appBar: AppBar(
@@ -831,6 +834,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 18.sp, // Responsive font size
           ),
         ),
         centerTitle: true,
@@ -843,21 +847,25 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
             if (isSubscriptionActive && subscriptionEndDate != null)
               Container(
                 width: double.infinity,
-                padding:
-                const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                padding: EdgeInsets.symmetric(
+                  vertical: 10.h,
+                  horizontal: 20.w,
+                ),
                 color: Colors.green.shade100,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.check_circle, color: primaryGreen),
-                        SizedBox(width: 8),
+                        Icon(Icons.check_circle,
+                            color: primaryGreen, size: 24.sp),
+                        SizedBox(width: 8.w),
                         Text(
                           'Active ${activeSubscriptionType ?? ""} Subscription',
                           style: GoogleFonts.poppins(
                             color: primaryGreen,
                             fontWeight: FontWeight.w600,
+                            fontSize: 14.sp,
                           ),
                         ),
                       ],
@@ -867,6 +875,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                       style: GoogleFonts.poppins(
                         color: primaryGreen,
                         fontWeight: FontWeight.w500,
+                        fontSize: 12.sp,
                       ),
                     ),
                   ],
@@ -875,31 +884,31 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
             Container(
               decoration: BoxDecoration(
                 color: primaryGreen,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(30.r),
+                  bottomRight: Radius.circular(30.r),
                 ),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.w),
               child: Column(
                 children: [
                   Text(
                     'Choose Your Plan',
                     style: GoogleFonts.poppins(
-                      fontSize: 24,
+                      fontSize: 24.sp,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10.h),
                   Text(
                     'Select the subscription that works best for you',
                     style: GoogleFonts.poppins(
                       color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
+                      fontSize: 14.sp,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20.h),
                   Row(
                     children: [
                       Expanded(
@@ -909,7 +918,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                           Icons.calendar_month,
                         ),
                       ),
-                      const SizedBox(width: 15),
+                      SizedBox(width: 15.w),
                       Expanded(
                         child: _buildPlanButton(
                           'Weekly',
@@ -923,12 +932,12 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (isMonthlySelected) _buildMonthsSelector(),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20.h),
                   _buildSectionTitle('Waste Types'),
                   _buildWasteTypeSection(
                     'Household Waste',
@@ -950,10 +959,10 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                     ],
                     commercialWasteSelection,
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20.h),
                   _buildSectionTitle('Schedule'),
                   _buildScheduleCard(),
-                  const SizedBox(height: 30),
+                  SizedBox(height: 30.h),
                   _buildContinueButton(),
                 ],
               ),
@@ -969,13 +978,13 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
     return GestureDetector(
       onTap: () => setState(() => isMonthlySelected = isMonthly),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+        padding: EdgeInsets.symmetric(vertical: 15.h, horizontal: 20.w),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(15.r),
           border: Border.all(
             color: isSelected ? primaryGreen : Colors.transparent,
-            width: 2,
+            width: 2.w,
           ),
         ),
         child: Column(
@@ -983,14 +992,15 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
             Icon(
               icon,
               color: isSelected ? primaryGreen : Colors.white,
-              size: 30,
+              size: 30.sp,
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10.h),
             Text(
               title,
               style: GoogleFonts.poppins(
                 color: isSelected ? primaryGreen : Colors.white,
                 fontWeight: FontWeight.w600,
+                fontSize: 14.sp,
               ),
             ),
           ],
@@ -1001,10 +1011,10 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
 
   Widget _buildMonthsSelector() {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: EdgeInsets.all(15.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -1013,38 +1023,133 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
         children: [
-          Text(
-            'Number of Months',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                onPressed: () {
-                  if (monthsCount > 1) {
-                    setState(() => monthsCount--);
-                  }
-                },
-                icon: Icon(Icons.remove_circle_outline, color: primaryGreen),
-              ),
               Text(
-                monthsCount.toString(),
+                'Number of Months',
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              IconButton(
-                onPressed: () => setState(() => monthsCount++),
-                icon: Icon(Icons.add_circle_outline, color: primaryGreen),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Row(
+                  children: [
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          if (monthsCount > 1) {
+                            setState(() => monthsCount--);
+                          }
+                        },
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(10.r),
+                          bottomLeft: Radius.circular(10.r),
+                        ),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 12.w, vertical: 8.h),
+                          decoration: BoxDecoration(
+                            color: monthsCount > 1
+                                ? Colors.green.shade50
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(9.r),
+                              bottomLeft: Radius.circular(9.r),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.remove,
+                            color: monthsCount > 1 ? primaryGreen : Colors.grey,
+                            size: 20.sp,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      constraints: BoxConstraints(minWidth: 40.w),
+                      padding: EdgeInsets.symmetric(horizontal: 8.w),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(color: Colors.grey.shade300),
+                          right: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                      child: Text(
+                        monthsCount.toString(),
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => setState(() => monthsCount++),
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(10.r),
+                          bottomRight: Radius.circular(10.r),
+                        ),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 12.w, vertical: 8.h),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.only(
+                              topRight: Radius.circular(9.r),
+                              bottomRight: Radius.circular(9.r),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.add,
+                            color: primaryGreen,
+                            size: 20.sp,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
+          ),
+          SizedBox(height: 10.h),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Monthly Price:',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14.sp,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                Text(
+                  '₹${(monthlyPrice * monthsCount).toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: primaryGreen,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1053,11 +1158,11 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: EdgeInsets.symmetric(vertical: 10.h),
       child: Text(
         title,
         style: GoogleFonts.poppins(
-          fontSize: 18,
+          fontSize: 18.sp,
           fontWeight: FontWeight.bold,
           color: primaryGreen,
         ),
@@ -1066,15 +1171,15 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
   }
 
   Widget _buildWasteTypeSection(
-      String title,
-      List<String> items,
-      List<bool> selectionList,
-      ) {
+    String title,
+    List<String> items,
+    List<bool> selectionList,
+  ) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
+      margin: EdgeInsets.symmetric(vertical: 10.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -1087,36 +1192,37 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(15),
+            padding: EdgeInsets.all(15.w),
             child: Text(
               title,
               style: GoogleFonts.poppins(
-                fontSize: 16,
+                fontSize: 16.sp,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                return CheckboxListTile(
-                  title: Text(
-                    items[index],
-                    style: GoogleFonts.poppins(),
-                  ),
-                  value: selectionList[index],
-                  onChanged: (value) {
-                    setState(() {
-                      selectionList[index] = value ?? false;
-                    });
-                  },
-                  activeColor: primaryGreen,
-                  checkColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-                );
-              }),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              return CheckboxListTile(
+                title: Text(
+                  items[index],
+                  style: GoogleFonts.poppins(fontSize: 14.sp),
+                ),
+                value: selectionList[index],
+                onChanged: (value) {
+                  setState(() {
+                    selectionList[index] = value ?? false;
+                  });
+                },
+                activeColor: primaryGreen,
+                checkColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(horizontal: 20.w),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -1126,7 +1232,7 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -1139,18 +1245,22 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         children: [
           ListTile(
             onTap: () => _selectStartDate(context),
-            contentPadding: const EdgeInsets.all(15),
+            contentPadding: EdgeInsets.all(15.w),
             leading: Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(10.w),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.r),
               ),
-              child: Icon(Icons.calendar_today, color: primaryGreen),
+              child:
+                  Icon(Icons.calendar_today, color: primaryGreen, size: 24.sp),
             ),
             title: Text(
               'Start Date',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+                fontSize: 16.sp,
+              ),
             ),
             subtitle: Text(
               selectedStartDate != null
@@ -1160,26 +1270,33 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                 color: selectedStartDate != null
                     ? Colors.black87
                     : Colors.grey.shade600,
+                fontSize: 14.sp,
               ),
             ),
-            trailing: Icon(Icons.arrow_forward_ios,
-                size: 16, color: Colors.grey.shade600),
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              size: 16.sp,
+              color: Colors.grey.shade600,
+            ),
           ),
-          Divider(color: Colors.grey.shade200, height: 1),
+          Divider(color: Colors.grey.shade200, height: 1.h),
           ListTile(
             onTap: () => _selectPickUpTime(context),
-            contentPadding: const EdgeInsets.all(15),
+            contentPadding: EdgeInsets.all(15.w),
             leading: Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(10.w),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.r),
               ),
-              child: Icon(Icons.access_time, color: primaryGreen),
+              child: Icon(Icons.access_time, color: primaryGreen, size: 24.sp),
             ),
             title: Text(
               'Pickup Time',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+                fontSize: 16.sp,
+              ),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1192,35 +1309,42 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                     color: selectedPickUpTime != null
                         ? Colors.black87
                         : Colors.grey.shade600,
+                    fontSize: 14.sp,
                   ),
                 ),
                 Text(
                   'Available: 7:00 AM - 11:00 PM',
                   style: GoogleFonts.poppins(
-                    fontSize: 12,
+                    fontSize: 12.sp,
                     color: Colors.grey.shade600,
                   ),
                 ),
               ],
             ),
-            trailing: Icon(Icons.arrow_forward_ios,
-                size: 16, color: Colors.grey.shade600),
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              size: 16.sp,
+              color: Colors.grey.shade600,
+            ),
           ),
-          Divider(color: Colors.grey.shade200, height: 1),
+          Divider(color: Colors.grey.shade200, height: 1.h),
           ListTile(
             onTap: _showAddressDialog,
-            contentPadding: const EdgeInsets.all(15),
+            contentPadding: EdgeInsets.all(15.w),
             leading: Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(10.w),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.r),
               ),
-              child: Icon(Icons.location_on, color: primaryGreen),
+              child: Icon(Icons.location_on, color: primaryGreen, size: 24.sp),
             ),
             title: Text(
               'Pickup Address',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+                fontSize: 16.sp,
+              ),
             ),
             subtitle: Text(
               pickupAddress ?? 'Enter pickup address',
@@ -1228,10 +1352,14 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
                 color: pickupAddress != null
                     ? Colors.black87
                     : Colors.grey.shade600,
+                fontSize: 14.sp,
               ),
             ),
-            trailing: Icon(Icons.arrow_forward_ios,
-                size: 16, color: Colors.grey.shade600),
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              size: 16.sp,
+              color: Colors.grey.shade600,
+            ),
           ),
         ],
       ),
@@ -1240,11 +1368,11 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
 
   Widget _buildContinueButton() {
     double totalPrice =
-    isMonthlySelected ? monthlyPrice * monthsCount : weeklyPrice;
+        isMonthlySelected ? monthlyPrice * monthsCount : weeklyPrice;
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: EdgeInsets.only(bottom: 20.h),
       child: ElevatedButton(
         onPressed: () {
           if (_validateForm()) {
@@ -1263,16 +1391,16 @@ class _SubscriptionDetailsPageState extends State<SubscriptionDetailsPage> {
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryGreen,
-          padding: const EdgeInsets.symmetric(vertical: 15),
+          padding: EdgeInsets.symmetric(vertical: 15.h),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(15.r),
           ),
           elevation: 2,
         ),
         child: Text(
           'Continue - ₹${totalPrice.toStringAsFixed(2)}',
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
