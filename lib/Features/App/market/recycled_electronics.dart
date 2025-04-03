@@ -9,6 +9,7 @@ import 'package:flutternew/Features/App/market/recycle_electronics_details.dart'
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 
 class RecycledElectronics extends StatefulWidget {
   @override
@@ -19,6 +20,10 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
     with TickerProviderStateMixin {
   late AnimationController _controller;
   final Color primaryColor = const Color(0xFF616161);
+
+  int _currentPage = 1;
+  final int _productsPerPage = 12;
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -38,10 +43,19 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
 
   @override
   Widget build(BuildContext context) {
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: _buildAppBar(context),
-      body: _buildBody(),
+      body: Column(
+        children: [
+          Expanded(
+            child: _buildBody(),
+          ),
+          _buildPagination(),
+        ],
+      ),
     );
   }
 
@@ -58,6 +72,7 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
         style: GoogleFonts.poppins(
           color: Colors.white,
           fontWeight: FontWeight.bold,
+          fontSize: 18.sp,
         ),
       ),
     );
@@ -83,28 +98,35 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.devices_other_outlined,
-                    size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
+                    size: 64.sp, color: Colors.grey[400]),
+                SizedBox(height: 16.h),
                 Text(
                   'No electronics available',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16.sp),
                 ),
               ],
             ),
           );
         }
 
-        var products = snapshot.data!.docs.toList();
+        var allProducts = snapshot.data!.docs.toList();
+        _totalPages = (allProducts.length / _productsPerPage).ceil();
+
+        var startIndex = (_currentPage - 1) * _productsPerPage;
+        var endIndex = startIndex + _productsPerPage;
+        if (endIndex > allProducts.length) endIndex = allProducts.length;
+
+        var products = allProducts.sublist(startIndex, endIndex);
 
         return AnimationLimiter(
           child: GridView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16.w),
             physics: const BouncingScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              mainAxisSpacing: 20,
-              crossAxisSpacing: 20,
-              childAspectRatio: 0.50,
+              mainAxisSpacing: 12.h,
+              crossAxisSpacing: 12.w,
+              childAspectRatio: 0.65,
             ),
             itemCount: products.length,
             itemBuilder: (context, index) {
@@ -134,6 +156,87 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
     );
   }
 
+  Widget _buildPagination() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 16.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            offset: Offset(0, -2.h),
+            blurRadius: 10.r,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed:
+                _currentPage > 1 ? () => setState(() => _currentPage--) : null,
+            icon: Icon(Icons.arrow_back_ios,
+                color: _currentPage > 1 ? primaryColor : Colors.grey),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(_totalPages, (index) {
+              final pageNumber = index + 1;
+              final isCurrentPage = pageNumber == _currentPage;
+
+              if (_totalPages <= 5 ||
+                  pageNumber == 1 ||
+                  pageNumber == _totalPages ||
+                  (pageNumber >= _currentPage - 1 &&
+                      pageNumber <= _currentPage + 1)) {
+                return Container(
+                  margin: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: ElevatedButton(
+                    onPressed: () => setState(() => _currentPage = pageNumber),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          isCurrentPage ? primaryColor : Colors.white,
+                      foregroundColor:
+                          isCurrentPage ? Colors.white : primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                        side: BorderSide(color: primaryColor),
+                      ),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                    ),
+                    child: Text(
+                      '$pageNumber',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                  ),
+                );
+              } else if (pageNumber == _currentPage - 2 ||
+                  pageNumber == _currentPage + 2) {
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: Text('...',
+                      style: TextStyle(color: primaryColor, fontSize: 14.sp)),
+                );
+              }
+              return const SizedBox.shrink();
+            }),
+          ),
+          IconButton(
+            onPressed: _currentPage < _totalPages
+                ? () => setState(() => _currentPage++)
+                : null,
+            icon: Icon(Icons.arrow_forward_ios,
+                color: _currentPage < _totalPages ? primaryColor : Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProductCard({
     required BuildContext context,
     required String productId,
@@ -144,14 +247,14 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
     required String image,
   }) {
     double discountPercentage =
-    oldPrice > price ? ((oldPrice - price) / oldPrice) * 100 : 0;
+        oldPrice > price ? ((oldPrice - price) / oldPrice) * 100 : 0;
 
     return OpenContainer(
       transitionDuration: const Duration(milliseconds: 500),
       openBuilder: (context, _) =>
           RecycledElectronicDetail(productId: productId),
       closedShape:
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       closedElevation: 0,
       closedColor: Colors.transparent,
       closedBuilder: (context, openContainer) => Container(
@@ -170,15 +273,16 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              flex: 3,
+              flex: 2,
               child: Stack(
                 children: [
                   Hero(
                     tag: 'electronic-$productId',
                     child: Container(
+                      height: 120.h,
                       decoration: BoxDecoration(
                         borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16)),
+                            top: Radius.circular(12)),
                         image: DecorationImage(
                           image: CachedNetworkImageProvider(image),
                           fit: BoxFit.cover,
@@ -188,20 +292,20 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
                   ),
                   if (discountPercentage > 0)
                     Positioned(
-                      top: 8,
-                      right: 8,
+                      top: 4,
+                      right: 4,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 6.w, vertical: 2.h),
                         decoration: BoxDecoration(
                           color: Colors.red[400],
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8.r),
                         ),
                         child: Text(
                           '${discountPercentage.toStringAsFixed(0)}% OFF',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
+                            fontSize: 8.sp,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -213,56 +317,61 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
             Expanded(
               flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '₹${NumberFormat('#,##0').format(price)}',
+                          name,
                           style: TextStyle(
-                            color: Colors.purple[400],
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 12.sp,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(width: 4),
-                        if (oldPrice > price)
-                          Text(
-                            '₹${NumberFormat('#,##0').format(oldPrice)}',
-                            style: const TextStyle(
-                              decoration: TextDecoration.lineThrough,
-                              color: Colors.grey,
-                              fontSize: 12,
+                        SizedBox(height: 2.h),
+                        Row(
+                          children: [
+                            Text(
+                              '₹${NumberFormat('#,##0').format(price)}',
+                              style: TextStyle(
+                                color: Colors.purple[400],
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                            SizedBox(width: 2.w),
+                            if (oldPrice > price)
+                              Text(
+                                '₹${NumberFormat('#,##0').format(oldPrice)}',
+                                style: TextStyle(
+                                  decoration: TextDecoration.lineThrough,
+                                  color: Colors.grey,
+                                  fontSize: 10.sp,
+                                ),
+                              ),
+                          ],
+                        ),
+                        SizedBox(height: 2.h),
+                        Row(
+                          children: List.generate(
+                            5,
+                            (index) => Icon(
+                              index < rating.round()
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              size: 12.sp,
+                              color: Colors.amber,
                             ),
                           ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: List.generate(
-                        5,
-                            (index) => Icon(
-                          index < rating.round()
-                              ? Icons.star
-                              : Icons.star_border,
-                          size: 14,
-                          color: Colors.amber,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -273,15 +382,16 @@ class _RecycledElectronicsState extends State<RecycledElectronics>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryColor,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(4.r),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: EdgeInsets.symmetric(vertical: 4.h),
                         ),
                         child: Text(
                           'Add to Cart',
                           style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
+                            fontSize: 10.sp,
                           ),
                         ),
                       ),

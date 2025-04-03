@@ -11,6 +11,7 @@ import 'package:flutternew/Features/App/market/fertilizerproduct.dart';
 import 'package:flutternew/Features/App/market/recycle_electronics_details.dart';
 import 'package:flutternew/Features/App/market/recycled_product_details.dart';
 import 'package:flutternew/Features/App/market/OGprovidere.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 
 class SearchResultsPage extends StatefulWidget {
   final String searchQuery;
@@ -35,6 +36,10 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   late Stream<List<Map<String, dynamic>>> _searchResults;
   late AnimationController _controller;
   final Color primaryColor = const Color(0xFF2E7D32);
+
+  int _currentPage = 1;
+  final int _productsPerPage = 12;
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -84,11 +89,11 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     return Rx.combineLatestList(streams).map((results) {
       // Flatten the list of lists into a single list
       final allProducts =
-      results.expand((products) => products).where((product) {
+          results.expand((products) => products).where((product) {
         // Apply filters
         final matchesSearch = product['name'].toString().toLowerCase().contains(
-          widget.searchQuery.toLowerCase(),
-        );
+              widget.searchQuery.toLowerCase(),
+            );
 
         final matchesCategory = widget.selectedCategory == null ||
             product['category'] == widget.selectedCategory;
@@ -129,12 +134,23 @@ class _SearchResultsPageState extends State<SearchResultsPage>
         return 0;
       });
 
-      return allProducts;
+      // Update total pages
+      _totalPages = (allProducts.length / _productsPerPage).ceil();
+
+      // Apply pagination
+      final startIndex = (_currentPage - 1) * _productsPerPage;
+      final endIndex = startIndex + _productsPerPage;
+      return allProducts.sublist(
+        startIndex,
+        endIndex > allProducts.length ? allProducts.length : endIndex,
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -149,83 +165,173 @@ class _SearchResultsPageState extends State<SearchResultsPage>
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 18.sp,
           ),
         ),
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _searchResults,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-              ),
-            );
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Error: ${snapshot.error}',
-                style: GoogleFonts.poppins(color: Colors.red),
-              ),
-            );
-          }
-
-          final results = snapshot.data ?? [];
-
-          if (results.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No results found',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      color: Colors.grey[600],
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _searchResults,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Try different keywords or filters',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+                  );
+                }
 
-          return AnimationLimiter(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 20,
-                crossAxisSpacing: 20,
-                childAspectRatio: 0.50,
-              ),
-              itemCount: results.length,
-              itemBuilder: (context, index) {
-                return AnimationConfiguration.staggeredGrid(
-                  position: index,
-                  duration: const Duration(milliseconds: 375),
-                  columnCount: 2,
-                  child: ScaleAnimation(
-                    child: FadeInAnimation(
-                      child: _buildProductCard(context, results[index]),
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error: ${snapshot.error}',
+                      style: GoogleFonts.poppins(color: Colors.red),
                     ),
+                  );
+                }
+
+                final results = snapshot.data ?? [];
+
+                if (results.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off,
+                            size: 64.sp, color: Colors.grey[400]),
+                        SizedBox(height: 16.h),
+                        Text(
+                          'No results found',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18.sp,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          'Try different keywords or filters',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14.sp,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return AnimationLimiter(
+                  child: GridView.builder(
+                    padding: EdgeInsets.all(16.w),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 20.h,
+                      crossAxisSpacing: 20.w,
+                      childAspectRatio: 0.50,
+                    ),
+                    itemCount: results.length,
+                    itemBuilder: (context, index) {
+                      return AnimationConfiguration.staggeredGrid(
+                        position: index,
+                        duration: const Duration(milliseconds: 375),
+                        columnCount: 2,
+                        child: ScaleAnimation(
+                          child: FadeInAnimation(
+                            child: _buildProductCard(context, results[index]),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
               },
             ),
-          );
-        },
+          ),
+          _buildPagination(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPagination() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 16.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            offset: Offset(0, -2.h),
+            blurRadius: 10.r,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed:
+                _currentPage > 1 ? () => setState(() => _currentPage--) : null,
+            icon: Icon(Icons.arrow_back_ios,
+                color: _currentPage > 1 ? primaryColor : Colors.grey),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(_totalPages, (index) {
+              final pageNumber = index + 1;
+              final isCurrentPage = pageNumber == _currentPage;
+
+              if (_totalPages <= 5 ||
+                  pageNumber == 1 ||
+                  pageNumber == _totalPages ||
+                  (pageNumber >= _currentPage - 1 &&
+                      pageNumber <= _currentPage + 1)) {
+                return Container(
+                  margin: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: ElevatedButton(
+                    onPressed: () => setState(() => _currentPage = pageNumber),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          isCurrentPage ? primaryColor : Colors.white,
+                      foregroundColor:
+                          isCurrentPage ? Colors.white : primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                        side: BorderSide(color: primaryColor),
+                      ),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                    ),
+                    child: Text(
+                      '$pageNumber',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                  ),
+                );
+              } else if (pageNumber == _currentPage - 2 ||
+                  pageNumber == _currentPage + 2) {
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: Text('...',
+                      style: TextStyle(color: primaryColor, fontSize: 14.sp)),
+                );
+              }
+              return const SizedBox.shrink();
+            }),
+          ),
+          IconButton(
+            onPressed: _currentPage < _totalPages
+                ? () => setState(() => _currentPage++)
+                : null,
+            icon: Icon(Icons.arrow_forward_ios,
+                color: _currentPage < _totalPages ? primaryColor : Colors.grey),
+          ),
+        ],
       ),
     );
   }
@@ -234,7 +340,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     final price = (product['price'] as num).toDouble();
     final oldPrice = (product['oldPrice'] as num?)?.toDouble() ?? price;
     final discountPercentage =
-    oldPrice > price ? ((oldPrice - price) / oldPrice) * 100 : 0;
+        oldPrice > price ? ((oldPrice - price) / oldPrice) * 100 : 0;
 
     return OpenContainer(
       transitionDuration: const Duration(milliseconds: 500),
@@ -256,7 +362,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
         return detailPage;
       },
       closedShape:
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       closedElevation: 0,
       closedColor: Colors.transparent,
       closedBuilder: (context, openContainer) => Container(
@@ -275,7 +381,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              flex: 3,
+              flex: 2,
               child: Stack(
                 children: [
                   Hero(
@@ -296,17 +402,17 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                       top: 8,
                       right: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 8.w, vertical: 4.h),
                         decoration: BoxDecoration(
                           color: Colors.red[400],
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
                         child: Text(
                           '${discountPercentage.toStringAsFixed(0)}% OFF',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
+                            fontSize: 10.sp,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -316,22 +422,22 @@ class _SearchResultsPageState extends State<SearchResultsPage>
               ),
             ),
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       product['name'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                        fontSize: 12.sp,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 2.h),
                     Row(
                       children: [
                         Text(
@@ -339,30 +445,30 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                           style: TextStyle(
                             color: Colors.purple[400],
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 14.sp,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: 2.w),
                         if (oldPrice > price)
                           Text(
                             '₹${NumberFormat('#,##0').format(oldPrice)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               decoration: TextDecoration.lineThrough,
                               color: Colors.grey,
-                              fontSize: 12,
+                              fontSize: 10.sp,
                             ),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 2.h),
                     Row(
                       children: List.generate(
                         5,
-                            (index) => Icon(
+                        (index) => Icon(
                           index < (product['rating'] ?? 0).round()
                               ? Icons.star
                               : Icons.star_border,
-                          size: 14,
+                          size: 12.sp,
                           color: Colors.amber,
                         ),
                       ),
@@ -391,15 +497,16 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryColor,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(8.r),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: EdgeInsets.symmetric(vertical: 8.h),
                         ),
                         child: Text(
                           'Add to Cart',
                           style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
+                            fontSize: 12.sp,
                           ),
                         ),
                       ),

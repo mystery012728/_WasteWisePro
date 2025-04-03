@@ -1210,15 +1210,23 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
       child: ElevatedButton(
         onPressed: () {
           if (_validateForm()) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => RazorpayScreen(
-                  totalPrice: totalPrice,
-                  onPaymentSuccess: _handlePaymentSuccess,
+            if (isWasteSelected) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RazorpayScreen(
+                    totalPrice: totalPrice,
+                    onPaymentSuccess: _handlePaymentSuccess,
+                  ),
                 ),
-              ),
-            );
+              );
+            } else {
+              _handlePaymentSuccess();
+              CustomSnackbar.showSuccess(
+                context: context,
+                message: "Scrap pickup scheduled successfully!",
+              );
+            }
           }
         },
         style: ElevatedButton.styleFrom(
@@ -1230,7 +1238,9 @@ class _SpecialDaysPageState extends State<SpecialDaysPage> {
           elevation: 2,
         ),
         child: Text(
-          'Continue - ₹${totalPrice.toStringAsFixed(2)}',
+          isWasteSelected
+              ? 'Continue - ₹${totalPrice.toStringAsFixed(2)}'
+              : 'Schedule Pickup',
           style: GoogleFonts.poppins(
             fontSize: 16.sp,
             fontWeight: FontWeight.w600,

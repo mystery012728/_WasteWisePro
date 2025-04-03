@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../User_auth/presentation/Pages/login_page.dart';
+import '../User_auth/util/screen_util.dart';
 
 class welcome extends StatelessWidget {
   @override
@@ -16,7 +17,11 @@ class welcome extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: OnboardingScreen(),
+      home: ScreenUtilInit(
+        designWidth: 375,
+        designHeight: 812,
+        builder: (context, child) => OnboardingScreen(),
+      ),
     );
   }
 }
@@ -92,13 +97,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               children: [
                 // App Name
                 Padding(
-                  padding: EdgeInsets.only(top: 20, left: 20),
+                  padding: EdgeInsets.only(top: 20.h, left: 20.w),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'WasteWisePro',
                       style: GoogleFonts.poppins(
-                        fontSize: 24,
+                        fontSize: 24.sp,
                         fontWeight: FontWeight.bold,
                         color: Colors.green.shade800,
                       ),
@@ -110,7 +115,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: Padding(
-                    padding: EdgeInsets.only(right: 20, top: 20),
+                    padding: EdgeInsets.only(right: 20.w, top: 20.h),
                     child: TextButton(
                       onPressed: _navigateToLogin,
                       child: Text(
@@ -118,6 +123,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         style: GoogleFonts.poppins(
                           color: Colors.green.shade600,
                           fontWeight: FontWeight.w600,
+                          fontSize: 14.sp,
                         ),
                       ),
                     ),
@@ -144,13 +150,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
                 // Page Indicator
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 30),
+                  padding: EdgeInsets.only(bottom: 30.h),
                   child: SmoothPageIndicator(
                     controller: _pageController,
                     count: onboardingData.length,
                     effect: ExpandingDotsEffect(
-                      dotHeight: 8,
-                      dotWidth: 8,
+                      dotHeight: 8.h,
+                      dotWidth: 8.w,
                       activeDotColor: Colors.green.shade800,
                       dotColor: Colors.green.shade200,
                     ),
@@ -160,7 +166,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 // Navigation Buttons
                 Padding(
                   padding:
-                      const EdgeInsets.only(bottom: 40, left: 20, right: 20),
+                      EdgeInsets.only(bottom: 40.h, left: 20.w, right: 20.w),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -176,7 +182,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           isOutlined: true,
                         )
                       else
-                        SizedBox(width: 100),
+                        SizedBox(width: 100.w),
                       _buildButton(
                         onPressed: () {
                           if (_currentPage == onboardingData.length - 1) {
@@ -210,7 +216,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     required bool isOutlined,
   }) {
     return Container(
-      height: 50,
+      height: 50.h,
       decoration: BoxDecoration(
         gradient: isOutlined
             ? null
@@ -219,7 +225,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(25.r),
         boxShadow: isOutlined
             ? []
             : [
@@ -236,14 +242,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: MaterialButton(
         onPressed: onPressed,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(25.r),
         ),
-        padding: EdgeInsets.symmetric(horizontal: 32),
+        padding: EdgeInsets.symmetric(horizontal: 32.w),
         child: Text(
           text,
           style: GoogleFonts.poppins(
             color: isOutlined ? Colors.green.shade600 : Colors.white,
-            fontSize: 16,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -267,14 +273,14 @@ class OnboardingContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: EdgeInsets.all(20.w),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            height: 300,
+            height: 300.h,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(20.r),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -284,7 +290,7 @@ class OnboardingContent extends StatelessWidget {
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(20.r),
               child: Image.asset(
                 gif,
                 fit: BoxFit.cover,
@@ -294,12 +300,12 @@ class OnboardingContent extends StatelessWidget {
               .animate()
               .fadeIn(duration: Duration(milliseconds: 600))
               .scale(delay: 200.ms),
-          SizedBox(height: 40),
+          SizedBox(height: 40.h),
           Text(
             title,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
-              fontSize: 28,
+              fontSize: 28.sp,
               fontWeight: FontWeight.bold,
               color: Colors.green.shade800,
             ),
@@ -307,12 +313,12 @@ class OnboardingContent extends StatelessWidget {
               .animate()
               .fadeIn(duration: Duration(milliseconds: 600))
               .slideY(begin: 0.3, end: 0),
-          SizedBox(height: 16),
+          SizedBox(height: 16.h),
           Text(
             description,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
-              fontSize: 16,
+              fontSize: 16.sp,
               color: Colors.grey[600],
               height: 1.5,
             ),

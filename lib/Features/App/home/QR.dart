@@ -38,6 +38,9 @@ class _ResultPageState extends State<ResultPage> {
   bool isPickupMissed = false;
   Map<String, TextEditingController> weightControllers = {};
   final PageController _specialDaysPageController = PageController();
+  Map<String, double> householdWeights = {};
+  Map<String, double> commercialWeights = {};
+  Map<String, double> scrapWeights = {};
 
   @override
   void initState() {
@@ -1077,71 +1080,7 @@ class _ResultPageState extends State<ResultPage> {
                             }
                           }
 
-                          try {
-                            // Add to successful pickups collection
-                            await FirebaseFirestore.instance
-                                .collection('successful_pickups')
-                                .add({
-                              'special_day_id': specialDayData['id'],
-                              'customer_id': specialDayData['userId'],
-                              'pickup_date': Timestamp.now(),
-                              'scheduled_time': specialDayData['pickup_time'],
-                              'type': 'special_day',
-                              'waste_type': specialDayData['type'],
-                              'household_waste':
-                                  specialDayData['household_waste'],
-                              'commercial_waste':
-                                  specialDayData['commercial_waste'],
-                              'scrap_types': specialDayData['scrap_types'],
-                              'household_waste_weights': householdWeights,
-                              'commercial_waste_weights': commercialWeights,
-                              'scrap_weights': scrapWeights,
-                              'status': 'completed',
-                              'completed_at': Timestamp.now()
-                            });
-
-                            // Create special day pickup notification
-                            await FirebaseFirestore.instance
-                                .collection('notifications')
-                                .add({
-                              'user_id': specialDayData['userId'],
-                              'message':
-                                  'Your special ${specialDayData['type']} pickup has been completed successfully. Thank you for using our service!',
-                              'created_at': Timestamp.now(),
-                              'read': false,
-                              'type': 'special_pickup_completed'
-                            });
-
-                            // Update special day status to inactive
-                            await FirebaseFirestore.instance
-                                .collection('special_day_details')
-                                .doc(specialDayData['id'])
-                                .update({
-                              'status': 'inactive',
-                              'completed_at': Timestamp.now()
-                            });
-
-                            if (mounted) {
-                              CustomSnackbar.showSuccess(
-                                context: context,
-                                message:
-                                    'Special day pickup confirmed successfully!',
-                              );
-                            }
-
-                            // Re-enable scanning
-                            await _enableScanning();
-                            Navigator.pop(context);
-                          } catch (e) {
-                            print('Error confirming special day pickup: $e');
-                            if (mounted) {
-                              CustomSnackbar.showError(
-                                context: context,
-                                message:
-                                    'Failed to confirm pickup. Please try again.',
-                              );
-                            }
-                          }
+                          await _confirmSpecialDayPickup(specialDayData);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryGreen,
@@ -1189,6 +1128,67 @@ class _ResultPageState extends State<ResultPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmSpecialDayPickup(
+      Map<String, dynamic> specialDayData) async {
+    try {
+      // Add to successful pickups collection
+      await FirebaseFirestore.instance.collection('successful_pickups').add({
+        'special_day_id': specialDayData['id'],
+        'customer_id': specialDayData['userId'],
+        'pickup_date': Timestamp.now(),
+        'scheduled_time': specialDayData['pickup_time'],
+        'type': 'special_day',
+        'waste_type': specialDayData['type'],
+        'household_waste': specialDayData['household_waste'],
+        'commercial_waste': specialDayData['commercial_waste'],
+        'scrap_types': specialDayData['scrap_types'],
+        'household_waste_weights': householdWeights,
+        'commercial_waste_weights': commercialWeights,
+        'scrap_weights': scrapWeights,
+        'status': 'completed',
+        'completed_at': Timestamp.now()
+      });
+
+      // Create special day pickup notification
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'user_id': specialDayData['userId'],
+        'message': specialDayData['type'] == 'scrap'
+            ? 'Your scrap pickup has been completed successfully. Cash received from pickup man.'
+            : 'Your special ${specialDayData['type']} pickup has been completed successfully. Thank you for using our service!',
+        'created_at': Timestamp.now(),
+        'read': false,
+        'type': 'special_pickup_completed'
+      });
+
+      // Update special day status to inactive
+      await FirebaseFirestore.instance
+          .collection('special_day_details')
+          .doc(specialDayData['id'])
+          .update({'status': 'inactive', 'completed_at': Timestamp.now()});
+
+      if (mounted) {
+        CustomSnackbar.showSuccess(
+          context: context,
+          message: specialDayData['type'] == 'scrap'
+              ? 'Scrap pickup confirmed successfully! Cash received from pickup man.'
+              : 'Special day pickup confirmed successfully!',
+        );
+      }
+
+      // Re-enable scanning
+      await _enableScanning();
+      Navigator.pop(context);
+    } catch (e) {
+      print('Error confirming special day pickup: $e');
+      if (mounted) {
+        CustomSnackbar.showError(
+          context: context,
+          message: 'Failed to confirm pickup. Please try again.',
+        );
+      }
+    }
   }
 }
 

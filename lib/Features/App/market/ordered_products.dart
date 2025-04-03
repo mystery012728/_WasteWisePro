@@ -3,6 +3,7 @@ import 'package:flutternew/Features/App/market/ordered_products_details.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:intl/intl.dart';
@@ -206,159 +207,6 @@ class _OrderedProductsState extends State<OrderedProducts> {
     }
   }
 
-  Widget _buildEmptyState(String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.shopping_bag_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOrdersList(List<Map<String, dynamic>> filteredOrders) {
-    if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          color: const Color(0xFF2E7D32),
-        ),
-      );
-    }
-
-    if (filteredOrders.isEmpty) {
-      return _buildEmptyState('No orders in this section');
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredOrders.length,
-      itemBuilder: (context, index) {
-        final order = filteredOrders[index];
-        return OrderCard(
-          order: order,
-          onStatusChanged: () {
-            _loadOrders();
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildToggleBar() {
-    return Container(
-      color: const Color(0xFF2E7D32),
-      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.green.shade800,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedView = 0;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color:
-                    _selectedView == 0 ? Colors.white : Colors.transparent,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Processing',
-                      style: GoogleFonts.poppins(
-                        color: _selectedView == 0
-                            ? const Color(0xFF2E7D32)
-                            : Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedView = 1;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color:
-                    _selectedView == 1 ? Colors.white : Colors.transparent,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Completed',
-                      style: GoogleFonts.poppins(
-                        color: _selectedView == 1
-                            ? const Color(0xFF2E7D32)
-                            : Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedView = 2;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color:
-                    _selectedView == 2 ? Colors.white : Colors.transparent,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Cancelled',
-                      style: GoogleFonts.poppins(
-                        color: _selectedView == 2
-                            ? const Color(0xFF2E7D32)
-                            : Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     // Get the appropriate filtered orders based on selected view
@@ -384,6 +232,7 @@ class _OrderedProductsState extends State<OrderedProducts> {
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 18.sp,
           ),
         ),
         backgroundColor: const Color(0xFF2E7D32),
@@ -397,6 +246,162 @@ class _OrderedProductsState extends State<OrderedProducts> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildToggleBar() {
+    return Container(
+      color: const Color(0xFF2E7D32),
+      padding: EdgeInsets.only(left: 16.w, right: 16.w, bottom: 16.h),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.green.shade800,
+          borderRadius: BorderRadius.circular(30.r),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedView = 0;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                  decoration: BoxDecoration(
+                    color:
+                        _selectedView == 0 ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(30.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Processing',
+                      style: GoogleFonts.poppins(
+                        color: _selectedView == 0
+                            ? const Color(0xFF2E7D32)
+                            : Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedView = 1;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                  decoration: BoxDecoration(
+                    color:
+                        _selectedView == 1 ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(30.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Completed',
+                      style: GoogleFonts.poppins(
+                        color: _selectedView == 1
+                            ? const Color(0xFF2E7D32)
+                            : Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedView = 2;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                  decoration: BoxDecoration(
+                    color:
+                        _selectedView == 2 ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(30.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Cancelled',
+                      style: GoogleFonts.poppins(
+                        color: _selectedView == 2
+                            ? const Color(0xFF2E7D32)
+                            : Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.shopping_bag_outlined,
+            size: 64.w,
+            color: Colors.grey[400],
+          ),
+          SizedBox(height: 16.h),
+          Text(
+            message,
+            style: GoogleFonts.poppins(
+              fontSize: 18.sp,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrdersList(List<Map<String, dynamic>> filteredOrders) {
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          color: const Color(0xFF2E7D32),
+        ),
+      );
+    }
+
+    if (filteredOrders.isEmpty) {
+      return _buildEmptyState('No orders in this section');
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.all(16.w),
+      itemCount: filteredOrders.length,
+      itemBuilder: (context, index) {
+        final order = filteredOrders[index];
+        return OrderCard(
+          order: order,
+          onStatusChanged: () {
+            _loadOrders();
+          },
+        );
+      },
     );
   }
 }
@@ -450,7 +455,7 @@ class OrderCard extends StatelessWidget {
 
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -463,9 +468,9 @@ class OrderCard extends StatelessWidget {
             ),
           );
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16.w),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -476,30 +481,31 @@ class OrderCard extends StatelessWidget {
                     'Order #${order['orderId']}',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
+                      fontSize: 14.sp,
                     ),
                   ),
                   _buildStatusChip(order['status']),
                 ],
               ),
               if (isReplacement) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: 8.h),
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(8.w),
                   decoration: BoxDecoration(
                     color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     border: Border.all(color: Colors.orange),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.refresh, color: Colors.orange, size: 16),
-                      const SizedBox(width: 4),
+                      Icon(Icons.refresh, color: Colors.orange, size: 16.w),
+                      SizedBox(width: 4.w),
                       Expanded(
                         child: Text(
                           'Replacement Order - Delivery by ${order['deliveryDate']}',
                           style: GoogleFonts.poppins(
                             color: Colors.orange,
-                            fontSize: 12,
+                            fontSize: 12.sp,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -508,19 +514,19 @@ class OrderCard extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               Row(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     child: Image.network(
                       firstItem['image'],
-                      width: 80,
-                      height: 80,
+                      width: 80.w,
+                      height: 80.h,
                       fit: BoxFit.cover,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12.w),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -529,6 +535,7 @@ class OrderCard extends StatelessWidget {
                           firstItem['title'],
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w500,
+                            fontSize: 14.sp,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -538,15 +545,16 @@ class OrderCard extends StatelessWidget {
                             '+${itemCount - 1} more items',
                             style: GoogleFonts.poppins(
                               color: Colors.grey[600],
-                              fontSize: 12,
+                              fontSize: 12.sp,
                             ),
                           ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4.h),
                         Text(
                           'Rs. ${order['totalAmount'].toStringAsFixed(2)}',
                           style: GoogleFonts.poppins(
                             color: const Color(0xFF2E7D32),
                             fontWeight: FontWeight.w500,
+                            fontSize: 14.sp,
                           ),
                         ),
                       ],
@@ -554,7 +562,7 @@ class OrderCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -562,7 +570,7 @@ class OrderCard extends StatelessWidget {
                     'Ordered on ${order['orderDate']}',
                     style: GoogleFonts.poppins(
                       color: Colors.grey[600],
-                      fontSize: 12,
+                      fontSize: 12.sp,
                     ),
                   ),
                   if (isProcessing && hasDeliveryDate)
@@ -570,30 +578,30 @@ class OrderCard extends StatelessWidget {
                       'Delivery by ${order['deliveryDate']}',
                       style: GoogleFonts.poppins(
                         color: Colors.grey[600],
-                        fontSize: 12,
+                        fontSize: 12.sp,
                       ),
                     ),
                 ],
               ),
               if (isOneDayBeforeDelivery && hasDeliveryTime) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: 8.h),
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(8.w),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     border: Border.all(color: Colors.green),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.access_time, color: Colors.green, size: 16),
-                      const SizedBox(width: 4),
+                      Icon(Icons.access_time, color: Colors.green, size: 16.w),
+                      SizedBox(width: 4.w),
                       Expanded(
                         child: Text(
                           'Your delivery will arrive tomorrow at ${order['predictedDeliveryTime']}',
                           style: GoogleFonts.poppins(
                             color: Colors.green,
-                            fontSize: 12,
+                            fontSize: 12.sp,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -603,7 +611,7 @@ class OrderCard extends StatelessWidget {
                 ),
               ],
               if (isDelivered) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 OutlinedButton.icon(
                   onPressed: () {
                     Navigator.push(
@@ -616,18 +624,19 @@ class OrderCard extends StatelessWidget {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.star, color: Colors.purple),
+                  icon: Icon(Icons.star, color: Colors.purple, size: 16.w),
                   label: Text(
                     'Rate & Review',
                     style: GoogleFonts.poppins(
                       color: Colors.purple,
                       fontWeight: FontWeight.w500,
+                      fontSize: 14.sp,
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.purple),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8.r),
                     ),
                   ),
                 ),
@@ -656,10 +665,10 @@ class OrderCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
       decoration: BoxDecoration(
         color: chipColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: chipColor),
       ),
       child: Text(
@@ -667,7 +676,7 @@ class OrderCard extends StatelessWidget {
         style: GoogleFonts.poppins(
           color: chipColor,
           fontWeight: FontWeight.w500,
-          fontSize: 12,
+          fontSize: 12.sp,
         ),
       ),
     );

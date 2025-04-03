@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutternew/Features/App/User_auth/util/smack_bar.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -23,6 +24,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   DateTime selectedEndDate = DateTime.now();
   double totalMonthlyWeight = 0.0;
   double totalCarbonFootprint = 0.0;
+  double totalEarnings = 0.0;
   bool isGeneratingPDF = false;
   int maxPagesPerDocument = 50; // Maximum pages per PDF document
   String selectedFilter = 'All';
@@ -42,6 +44,14 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   Map<String, dynamic> specialDayStats = {
     'totalWeight': 0.0,
     'carbonFootprint': 0.0,
+    'successful': 0,
+    'missed': 0,
+    'cancelled': 0,
+  };
+
+  Map<String, dynamic> scrapStats = {
+    'totalWeight': 0.0,
+    'totalEarnings': 0.0,
     'successful': 0,
     'missed': 0,
     'cancelled': 0,
@@ -77,9 +87,9 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     }
 
     final startDate =
-    DateTime(selectedStartDate.year, selectedStartDate.month, 1);
+        DateTime(selectedStartDate.year, selectedStartDate.month, 1);
     final endDate =
-    DateTime(selectedEndDate.year, selectedEndDate.month + 1, 0);
+        DateTime(selectedEndDate.year, selectedEndDate.month + 1, 0);
 
     // Reset stats
     subscriptionStats = {
@@ -93,6 +103,14 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     specialDayStats = {
       'totalWeight': 0.0,
       'carbonFootprint': 0.0,
+      'successful': 0,
+      'missed': 0,
+      'cancelled': 0,
+    };
+
+    scrapStats = {
+      'totalWeight': 0.0,
+      'totalEarnings': 0.0,
       'successful': 0,
       'missed': 0,
       'cancelled': 0,
@@ -130,9 +148,12 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       if (selectedHistoryType == 'subscription') {
         totalMonthlyWeight = subscriptionStats['totalWeight'];
         totalCarbonFootprint = subscriptionStats['carbonFootprint'];
-      } else {
+      } else if (selectedHistoryType == 'special_day') {
         totalMonthlyWeight = specialDayStats['totalWeight'];
         totalCarbonFootprint = specialDayStats['carbonFootprint'];
+      } else {
+        totalMonthlyWeight = scrapStats['totalWeight'];
+        totalEarnings = scrapStats['totalEarnings'];
       }
     });
   }
@@ -140,8 +161,8 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   Future<void> _calculatePickupTypeStats(
       String collection, DateTime startDate, DateTime endDate,
       {bool isSuccessful = true,
-        bool isCancelled = false,
-        required String userId}) async {
+      bool isCancelled = false,
+      required String userId}) async {
     final dateField = isCancelled ? 'date' : 'pickup_date';
 
     var query = FirebaseFirestore.instance
@@ -155,12 +176,20 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     for (var doc in pickups.docs) {
       final data = doc.data();
 
-      // Determine if this is a subscription or special day pickup
+      // Determine if this is a subscription, special day, or scrap pickup
       final bool isSpecialDay = data['special_day_id'] != null;
       final bool isSubscription = data['subscription_id'] != null;
+      final bool isScrap = data['waste_type'] == 'scrap';
 
       // Update count stats
-      if (isSpecialDay) {
+      if (isScrap) {
+        if (isSuccessful)
+          scrapStats['successful']++;
+        else if (isCancelled)
+          scrapStats['cancelled']++;
+        else
+          scrapStats['missed']++;
+      } else if (isSpecialDay) {
         if (isSuccessful)
           specialDayStats['successful']++;
         else if (isCancelled)
@@ -176,11 +205,12 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
           subscriptionStats['missed']++;
       }
 
-      // Only calculate weight and carbon footprint for successful pickups
+      // Only calculate weight and carbon footprint/earnings for successful pickups
       if (!isSuccessful) continue;
 
       double weight = 0.0;
       double carbonFootprint = 0.0;
+      double earnings = 0.0;
 
       // Process weights for subscription pickups
       if (isSubscription) {
@@ -201,7 +231,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
         // Check for household waste weights
         if (data['household_waste_weights'] != null) {
           final householdWeights =
-          data['household_waste_weights'] as Map<String, dynamic>;
+              data['household_waste_weights'] as Map<String, dynamic>;
           householdWeights.forEach((type, typeWeight) {
             if (typeWeight is num) {
               final double weightValue = typeWeight.toDouble();
@@ -215,7 +245,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
         // Check for commercial waste weights
         if (data['commercial_waste_weights'] != null) {
           final commercialWeights =
-          data['commercial_waste_weights'] as Map<String, dynamic>;
+              data['commercial_waste_weights'] as Map<String, dynamic>;
           commercialWeights.forEach((type, typeWeight) {
             if (typeWeight is num) {
               final double weightValue = typeWeight.toDouble();
@@ -252,9 +282,44 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
           });
         }
       }
+      // Process weights for scrap pickups
+      else if (isScrap) {
+        if (data['scrap_weights'] != null) {
+          final scrapWeights = data['scrap_weights'] as Map<String, dynamic>;
+          scrapWeights.forEach((type, typeWeight) {
+            if (typeWeight is num) {
+              final double weightValue = typeWeight.toDouble();
+              weight += weightValue;
+              // Calculate earnings based on scrap type
+              double pricePerKg = 0.0;
+              switch (type) {
+                case 'News Paper':
+                  pricePerKg = 15;
+                  break;
+                case 'Office Paper(A3/A4)':
+                  pricePerKg = 15;
+                  break;
+                case 'Books':
+                  pricePerKg = 12;
+                  break;
+                case 'Cardboard':
+                  pricePerKg = 8;
+                  break;
+                case 'Plastic':
+                  pricePerKg = 10;
+                  break;
+              }
+              earnings += weightValue * pricePerKg;
+            }
+          });
+        }
+      }
 
       // Add to appropriate stats
-      if (isSpecialDay) {
+      if (isScrap) {
+        scrapStats['totalWeight'] += weight;
+        scrapStats['totalEarnings'] += earnings;
+      } else if (isSpecialDay) {
         specialDayStats['totalWeight'] += weight;
         specialDayStats['carbonFootprint'] += carbonFootprint;
       } else if (isSubscription) {
@@ -299,9 +364,9 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
 
     try {
       final startDate =
-      DateTime(selectedStartDate.year, selectedStartDate.month, 1);
+          DateTime(selectedStartDate.year, selectedStartDate.month, 1);
       final endDate =
-      DateTime(selectedEndDate.year, selectedEndDate.month + 1, 0);
+          DateTime(selectedEndDate.year, selectedEndDate.month + 1, 0);
 
       // Fetch all types of pickups
       final successfulPickups = await FirebaseFirestore.instance
@@ -329,7 +394,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       for (var doc in successfulPickups.docs) {
         final data = doc.data();
         if ((selectedHistoryType == 'subscription' &&
-            data['subscription_id'] != null) ||
+                data['subscription_id'] != null) ||
             (selectedHistoryType == 'special_day' &&
                 data['special_day_id'] != null)) {
           allPickups.add({
@@ -344,7 +409,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       for (var doc in missedPickups.docs) {
         final data = doc.data();
         if ((selectedHistoryType == 'subscription' &&
-            data['subscription_id'] != null) ||
+                data['subscription_id'] != null) ||
             (selectedHistoryType == 'special_day' &&
                 data['special_day_id'] != null)) {
           allPickups.add({
@@ -359,7 +424,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       for (var doc in cancelledPickups.docs) {
         final data = doc.data();
         if ((selectedHistoryType == 'subscription' &&
-            data['subscription_id'] != null) ||
+                data['subscription_id'] != null) ||
             (selectedHistoryType == 'special_day' &&
                 data['special_day_id'] != null)) {
           allPickups.add({
@@ -391,7 +456,9 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       // Get stats based on selected history type
       final stats = selectedHistoryType == 'subscription'
           ? subscriptionStats
-          : specialDayStats;
+          : selectedHistoryType == 'special_day'
+              ? specialDayStats
+              : scrapStats;
 
       final List<File> pdfFiles = [];
       int fileCounter = 1;
@@ -411,7 +478,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                 data['subscription_id'] != null) {
               // Handle subscription pickups
               final wasteWeights =
-              data['waste_weights'] as Map<String, dynamic>?;
+                  data['waste_weights'] as Map<String, dynamic>?;
               if (wasteWeights != null) {
                 wasteWeights.forEach((type, weight) {
                   if (weight is num) {
@@ -428,7 +495,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
               // Check household waste weights
               if (data['household_waste_weights'] != null) {
                 final weights =
-                data['household_waste_weights'] as Map<String, dynamic>;
+                    data['household_waste_weights'] as Map<String, dynamic>;
                 weights.forEach((type, weight) {
                   if (weight is num) {
                     final double weightValue = weight.toDouble();
@@ -442,7 +509,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
               // Check commercial waste weights
               if (data['commercial_waste_weights'] != null) {
                 final weights =
-                data['commercial_waste_weights'] as Map<String, dynamic>;
+                    data['commercial_waste_weights'] as Map<String, dynamic>;
                 weights.forEach((type, weight) {
                   if (weight is num) {
                     final double weightValue = weight.toDouble();
@@ -513,7 +580,9 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
         final output = await getTemporaryDirectory();
         final historyType = selectedHistoryType == 'subscription'
             ? 'Subscription'
-            : 'SpecialDay';
+            : selectedHistoryType == 'special_day'
+                ? 'Special Day'
+                : 'Scrap';
         final file = File(
           '${output.path}/WasteWisePro_${historyType}_Report_${DateFormat('MMM_yyyy').format(selectedStartDate)}_part$fileCounter.pdf',
         );
@@ -525,11 +594,13 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       if (pdfFiles.isNotEmpty) {
         final historyType = selectedHistoryType == 'subscription'
             ? 'Subscription'
-            : 'Special Day';
+            : selectedHistoryType == 'special_day'
+                ? 'Special Day'
+                : 'Scrap';
         await Share.shareFiles(
           pdfFiles.map((f) => f.path!).toList(),
           text:
-          'Waste Wise Pro - $historyType Pickup History Report (${DateFormat('MMM d').format(selectedStartDate)} - ${DateFormat('MMM d, y').format(selectedEndDate)})',
+              'Waste Wise Pro - $historyType Pickup History Report (${DateFormat('MMM d').format(selectedStartDate)} - ${DateFormat('MMM d, y').format(selectedEndDate)})',
         );
       }
     } catch (e) {
@@ -549,8 +620,11 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   }
 
   pw.Widget _buildPDFHeader(pw.Context context) {
-    final historyType =
-    selectedHistoryType == 'subscription' ? 'Subscription' : 'Special Day';
+    final historyType = selectedHistoryType == 'subscription'
+        ? 'Subscription'
+        : selectedHistoryType == 'special_day'
+            ? 'Special Day'
+            : 'Scrap';
 
     return pw.Container(
       padding: pw.EdgeInsets.all(20),
@@ -617,12 +691,12 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   }
 
   pw.Widget _buildPDFSummarySection(
-      double totalWeight,
-      double totalCarbonFootprint,
-      int successfulPickups,
-      int missedPickups,
-      int cancelledPickups,
-      ) {
+    double totalWeight,
+    double totalCarbonFootprint,
+    int successfulPickups,
+    int missedPickups,
+    int cancelledPickups,
+  ) {
     return pw.Container(
       padding: pw.EdgeInsets.all(15),
       decoration: pw.BoxDecoration(
@@ -784,7 +858,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     );
   }
 
-// Update the _buildPDFTableCell method to handle text wrapping
+  // Update the _buildPDFTableCell method to handle text wrapping
   pw.Widget _buildPDFTableCell(String text,
       {PdfColor? textColor, bool isBold = false, bool allowWrap = false}) {
     return pw.Container(
@@ -797,13 +871,13 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
         ),
         textAlign: pw.TextAlign.left,
         maxLines:
-        allowWrap ? null : 1, // Allow multiple lines for wrapping text
+            allowWrap ? null : 1, // Allow multiple lines for wrapping text
         overflow: allowWrap ? pw.TextOverflow.span : pw.TextOverflow.clip,
       ),
     );
   }
 
-// Improve the waste type string formatting to handle long lists better
+  // Improve the waste type string formatting to handle long lists better
   String _getWasteTypeString(Map<String, dynamic> data) {
     List<String> types = [];
 
@@ -845,7 +919,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     return types.join(', ');
   }
 
-// Improve the weight string formatting to handle multiple weights better
+  // Improve the weight string formatting to handle multiple weights better
   String _getWeightString(Map<String, dynamic> data) {
     double totalWeight = 0.0;
     List<String> weightStrings = [];
@@ -932,6 +1006,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 18.sp,
           ),
         ),
         backgroundColor: primaryGreen,
@@ -939,10 +1014,10 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
           if (isGeneratingPDF)
             Center(
               child: Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: EdgeInsets.all(8.w),
                 child: SizedBox(
-                  height: 20,
-                  width: 20,
+                  height: 20.h,
+                  width: 20.w,
                   child: CircularProgressIndicator(
                     color: Colors.white,
                     strokeWidth: 2,
@@ -957,26 +1032,29 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
             ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildHistoryTypeSelector(),
-          _buildDateRangeSelector(),
-          _buildStats(),
-          Expanded(
-            child: DefaultTabController(
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildHistoryTypeSelector(),
+            _buildDateRangeSelector(),
+            _buildStats(),
+            DefaultTabController(
               length: 3,
               child: Column(
                 children: [
                   TabBar(
                     labelColor: primaryGreen,
                     unselectedLabelColor: Colors.grey,
+                    labelStyle: GoogleFonts.poppins(fontSize: 14.sp),
+                    unselectedLabelStyle: GoogleFonts.poppins(fontSize: 14.sp),
                     tabs: [
                       Tab(text: 'Successful'),
                       Tab(text: 'Missed'),
                       Tab(text: 'Cancelled'),
                     ],
                   ),
-                  Expanded(
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.5,
                     child: TabBarView(
                       children: [
                         _buildPickupList('successful_pickups'),
@@ -988,15 +1066,15 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildHistoryTypeSelector() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(16.w),
       child: Row(
         children: [
           Expanded(
@@ -1010,12 +1088,12 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                 _calculateStats();
               },
               child: Container(
-                padding: EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.symmetric(vertical: 12.h),
                 decoration: BoxDecoration(
                   color: selectedHistoryType == 'subscription'
                       ? primaryGreen
                       : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Center(
                   child: Text(
@@ -1025,13 +1103,14 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                           ? Colors.white
                           : Colors.black,
                       fontWeight: FontWeight.w500,
+                      fontSize: 14.sp,
                     ),
                   ),
                 ),
               ),
             ),
           ),
-          SizedBox(width: 16),
+          SizedBox(width: 8.w),
           Expanded(
             child: InkWell(
               onTap: () {
@@ -1043,12 +1122,12 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                 _calculateStats();
               },
               child: Container(
-                padding: EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.symmetric(vertical: 12.h),
                 decoration: BoxDecoration(
                   color: selectedHistoryType == 'special_day'
                       ? primaryGreen
                       : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Center(
                   child: Text(
@@ -1058,6 +1137,41 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                           ? Colors.white
                           : Colors.black,
                       fontWeight: FontWeight.w500,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  selectedHistoryType = 'scrap';
+                  totalMonthlyWeight = scrapStats['totalWeight'];
+                  totalEarnings = scrapStats['totalEarnings'];
+                });
+                _calculateStats();
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                decoration: BoxDecoration(
+                  color: selectedHistoryType == 'scrap'
+                      ? primaryGreen
+                      : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Center(
+                  child: Text(
+                    'Scrap History',
+                    style: GoogleFonts.poppins(
+                      color: selectedHistoryType == 'scrap'
+                          ? Colors.white
+                          : Colors.black,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14.sp,
                     ),
                   ),
                 ),
@@ -1071,14 +1185,14 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
 
   Widget _buildDateRangeSelector() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(16.w),
       child: InkWell(
         onTap: () => _selectDateRange(context),
         child: Container(
-          padding: EdgeInsets.all(12),
+          padding: EdgeInsets.all(12.w),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1086,7 +1200,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
               Text(
                 '${DateFormat('MMM d, y').format(selectedStartDate)} - ${DateFormat('MMM d, y').format(selectedEndDate)}',
                 style: GoogleFonts.poppins(
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1099,19 +1213,23 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   }
 
   Widget _buildStats() {
-    // Get stats based on selected history type
     final stats = selectedHistoryType == 'subscription'
         ? subscriptionStats
-        : specialDayStats;
-    final historyType =
-    selectedHistoryType == 'subscription' ? 'Subscription' : 'Special Day';
+        : selectedHistoryType == 'special_day'
+            ? specialDayStats
+            : scrapStats;
+    final historyType = selectedHistoryType == 'subscription'
+        ? 'Subscription'
+        : selectedHistoryType == 'special_day'
+            ? 'Special Day'
+            : 'Scrap';
 
     return Container(
-      padding: EdgeInsets.all(16),
-      margin: EdgeInsets.all(16),
+      padding: EdgeInsets.all(12.w),
+      margin: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -1126,25 +1244,30 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
           Text(
             '$historyType Statistics',
             style: GoogleFonts.poppins(
-              fontSize: 18,
+              fontSize: 16.sp,
               fontWeight: FontWeight.bold,
               color: primaryGreen,
             ),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 12.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildStatCard('Total Weight',
                   '${stats['totalWeight'].toStringAsFixed(2)} kg', Icons.scale),
               _buildStatCard(
-                  'Carbon Footprint',
-                  '${stats['carbonFootprint'].toStringAsFixed(2)} kg CO₂e',
-                  Icons.eco,
-                  subtitle: 'Environmental Impact'),
+                  selectedHistoryType == 'scrap'
+                      ? 'Total Earnings'
+                      : 'Carbon Footprint',
+                  selectedHistoryType == 'scrap'
+                      ? '₹${stats['totalEarnings'].toStringAsFixed(2)}'
+                      : '${stats['carbonFootprint'].toStringAsFixed(2)} kg CO₂e',
+                  selectedHistoryType == 'scrap'
+                      ? Icons.attach_money
+                      : Icons.eco),
             ],
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 12.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1161,46 +1284,34 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon,
-      {String? subtitle}) {
+  Widget _buildStatCard(String title, String value, IconData icon) {
     return Expanded(
       child: Container(
-        padding: EdgeInsets.all(16),
-        margin: EdgeInsets.symmetric(horizontal: 8),
+        padding: EdgeInsets.all(12.w),
+        margin: EdgeInsets.symmetric(horizontal: 4.w),
         decoration: BoxDecoration(
           color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.r),
           border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
           children: [
-            Icon(icon, color: primaryGreen, size: 32),
-            SizedBox(height: 8),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-            SizedBox(height: 4),
+            Icon(icon, color: primaryGreen, size: 24.w),
+            SizedBox(height: 4.h),
             Text(
               value,
               style: GoogleFonts.poppins(
-                fontSize: 16,
+                fontSize: 14.sp,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            if (subtitle != null) ...[
-              SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.grey[500],
-                ),
-              )
-            ],
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 12.sp,
+                color: Colors.grey[600],
+              ),
+            ),
           ],
         ),
       ),
@@ -1211,28 +1322,28 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       String title, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
-        padding: EdgeInsets.all(12),
-        margin: EdgeInsets.symmetric(horizontal: 4),
+        padding: EdgeInsets.all(8.w),
+        margin: EdgeInsets.symmetric(horizontal: 2.w),
         decoration: BoxDecoration(
           color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.r),
           border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 24),
-            SizedBox(height: 4),
+            Icon(icon, color: color, size: 20.w),
+            SizedBox(height: 2.h),
             Text(
               value,
               style: GoogleFonts.poppins(
-                fontSize: 16,
+                fontSize: 14.sp,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               title,
               style: GoogleFonts.poppins(
-                fontSize: 12,
+                fontSize: 10.sp,
                 color: Colors.grey[600],
               ),
             ),
@@ -1244,11 +1355,11 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
 
   Widget _buildPickupList(String collection) {
     final startDate =
-    DateTime(selectedStartDate.year, selectedStartDate.month, 1);
+        DateTime(selectedStartDate.year, selectedStartDate.month, 1);
     final endDate =
-    DateTime(selectedEndDate.year, selectedEndDate.month + 1, 0);
+        DateTime(selectedEndDate.year, selectedEndDate.month + 1, 0);
     final dateField =
-    collection == 'cancelled_pickups' ? 'date' : 'pickup_date';
+        collection == 'cancelled_pickups' ? 'date' : 'pickup_date';
     final User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
@@ -1287,15 +1398,17 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
 
           if (selectedHistoryType == 'subscription') {
             return data['subscription_id'] != null;
-          } else {
+          } else if (selectedHistoryType == 'special_day') {
             return data['special_day_id'] != null;
+          } else {
+            return data['waste_type'] == 'scrap';
           }
         }).toList();
 
         if (filteredDocs.isEmpty) {
           return Center(
             child: Text(
-              'No ${selectedHistoryType == "subscription" ? "subscription" : "special day"} pickups found',
+              'No ${selectedHistoryType == "subscription" ? "subscription" : selectedHistoryType == 'special_day' ? 'special day' : 'scrap'} pickups found',
               style: GoogleFonts.poppins(color: Colors.grey),
             ),
           );
@@ -1408,27 +1521,41 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     }
 
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
       child: ListTile(
         leading: Icon(
           collection == 'successful_pickups'
               ? Icons.check_circle
               : collection == 'missed_pickups'
-              ? Icons.error
-              : Icons.cancel,
+                  ? Icons.error
+                  : Icons.cancel,
           color: collection == 'successful_pickups'
               ? Colors.green
               : collection == 'missed_pickups'
-              ? Colors.orange
-              : Colors.red,
+                  ? Colors.orange
+                  : Colors.red,
+          size: 24.w,
         ),
         title: Text(
           DateFormat('dd/MM/yyyy HH:mm').format(date),
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 14.sp,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: wasteDetails,
+          children: wasteDetails.map((widget) {
+            if (widget is Text) {
+              return Text(
+                widget.data!,
+                style: GoogleFonts.poppins(
+                  fontSize: 12.sp,
+                ),
+              );
+            }
+            return widget;
+          }).toList(),
         ),
         isThreeLine: wasteDetails.length > 1,
       ),
