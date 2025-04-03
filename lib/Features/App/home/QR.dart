@@ -103,34 +103,47 @@ class _ResultPageState extends State<ResultPage> {
 
   Future<void> _addToMissedPickups() async {
     try {
-      // Add to missed pickups collection
-      await FirebaseFirestore.instance.collection('missed_pickups').add({
-        'subscription_id': subscriptionData!['id'],
-        'customer_id': subscriptionData!['customer_id'],
-        'scheduled_date': DateTime.now(),
-        'scheduled_time': subscriptionData!['pickup_time'],
-        'subscription_type': subscriptionData!['subscription_type'],
-        'missed_at': DateTime.now(),
-        'status': 'missed'
-      });
+      // Check if missed pickup already exists for today
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      
+      final existingMissedPickups = await FirebaseFirestore.instance
+          .collection('missed_pickups')
+          .where('subscription_id', isEqualTo: subscriptionData!['id'])
+          .where('scheduled_date', isGreaterThanOrEqualTo: today)
+          .where('scheduled_date', isLessThan: today.add(Duration(days: 1)))
+          .get();
 
-      // Create missed pickup notification
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'user_id': subscriptionData!['customer_id'],
-        'message':
-        'Your scheduled pickup for today at ${subscriptionData!['pickup_time']} was missed. Please contact support for assistance.',
-        'created_at': Timestamp.now(),
-        'read': false,
-        'type': 'pickup_missed'
-      });
+      if (existingMissedPickups.docs.isEmpty) {
+        // Add to missed pickups collection only if no entry exists
+        await FirebaseFirestore.instance.collection('missed_pickups').add({
+          'subscription_id': subscriptionData!['id'],
+          'customer_id': subscriptionData!['customer_id'],
+          'scheduled_date': today,
+          'scheduled_time': subscriptionData!['pickup_time'],
+          'subscription_type': subscriptionData!['subscription_type'],
+          'missed_at': DateTime.now(),
+          'status': 'missed'
+        });
 
-      // Update UI to show missed status
-      setState(() {
-        isPickupMissed = true;
-      });
+        // Create missed pickup notification
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'user_id': subscriptionData!['customer_id'],
+          'message':
+          'Your scheduled pickup for today at ${subscriptionData!['pickup_time']} was missed. Please contact support for assistance.',
+          'created_at': Timestamp.now(),
+          'read': false,
+          'type': 'pickup_missed'
+        });
 
-      // Trigger background service check
-      BackgroundService.initialize();
+        // Update UI to show missed status
+        setState(() {
+          isPickupMissed = true;
+        });
+
+        // Trigger background service check
+        BackgroundService.initialize();
+      }
     } catch (e) {
       print('Error adding to missed pickups: $e');
     }
