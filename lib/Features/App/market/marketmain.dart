@@ -631,16 +631,16 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                         children: [
                           Icon(
                             Icons.local_offer,
-                            size: 12.sp,
+                            size: 14.sp,
                             color: Colors.red.shade400,
                           ),
-                          SizedBox(width: 4.w),
+                          SizedBox(width: 6.w),
                           Text(
                             'Save ₹${(oldPrice - price).toStringAsFixed(2)}',
                             style: GoogleFonts.poppins(
                               color: Colors.red.shade400,
                               fontWeight: FontWeight.w500,
-                              fontSize: 9.sp,
+                              fontSize: 11.sp,
                             ),
                           ),
                         ],

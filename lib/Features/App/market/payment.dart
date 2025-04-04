@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutternew/Features/App/User_auth/util/smack_bar.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 import 'package:flutternew/Features/App/home/home.dart';
 import 'package:flutternew/Features/App/payment/razer_pay.dart';
 import 'package:http/http.dart' as http;
@@ -71,27 +72,30 @@ class _AddressScreenState extends State<AddressScreen> {
   InputDecoration _buildInputDecoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: GoogleFonts.poppins(color: Colors.grey[600]),
+      labelStyle: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 14.sp),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         borderSide: BorderSide(color: Colors.grey[300]!),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         borderSide: BorderSide(color: Colors.grey[300]!),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         borderSide: BorderSide(color: primaryGreen, width: 2),
       ),
       filled: true,
       fillColor: Colors.grey[50],
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -99,23 +103,23 @@ class _AddressScreenState extends State<AddressScreen> {
             const StepperWidget(currentStep: 1),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Add Delivery Address',
                       style: GoogleFonts.poppins(
-                        fontSize: 24,
+                        fontSize: 22.sp,
                         fontWeight: FontWeight.bold,
                         color: primaryGreen,
                       ),
                     ).animate().fadeIn().slideX(),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     _buildSavedAddresses(),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     _buildAddNewAddressButton(),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     PriceDetailsCard(productInfo: widget.productInfo),
                   ].animate(interval: 100.ms).fadeIn().slideX(),
                 ),
@@ -134,13 +138,16 @@ class _AddressScreenState extends State<AddressScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
-          return Text('Error loading addresses: ${snapshot.error}');
+          return Text(
+            'Error loading addresses: ${snapshot.error}',
+            style: GoogleFonts.poppins(fontSize: 14.sp),
+          );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20.w),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -154,6 +161,7 @@ class _AddressScreenState extends State<AddressScreen> {
                 'No saved addresses found. Please add a new address.',
                 style: GoogleFonts.poppins(
                   color: Colors.grey[600],
+                  fontSize: 14.sp,
                 ),
               ),
             ),
@@ -163,10 +171,10 @@ class _AddressScreenState extends State<AddressScreen> {
         return Column(
           children: snapshot.data!.map((addressData) {
             return Container(
-              margin: const EdgeInsets.only(bottom: 16),
+              margin: EdgeInsets.only(bottom: 16.h),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
@@ -176,22 +184,25 @@ class _AddressScreenState extends State<AddressScreen> {
                 ],
               ),
               child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
-                leading: Icon(Icons.home, color: primaryGreen),
+                contentPadding: EdgeInsets.all(16.w),
+                leading: Icon(Icons.home, color: primaryGreen, size: 24.w),
                 title: Text(
                   addressData['name'] ?? 'Name',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16.sp,
+                  ),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       addressData['mobile'] ?? 'Mobile',
-                      style: GoogleFonts.poppins(),
+                      style: GoogleFonts.poppins(fontSize: 14.sp),
                     ),
                     Text(
                       addressData['address'] ?? 'Address',
-                      style: GoogleFonts.poppins(),
+                      style: GoogleFonts.poppins(fontSize: 14.sp),
                     ),
                   ],
                 ),
@@ -240,17 +251,17 @@ class _AddressScreenState extends State<AddressScreen> {
   Widget _buildAddNewAddressButton() {
     return ElevatedButton.icon(
       onPressed: () => _showAddAddressForm(),
-      icon: const Icon(Icons.add),
+      icon: Icon(Icons.add, size: 20.w),
       label: Text(
         'Add New Address',
-        style: GoogleFonts.poppins(),
+        style: GoogleFonts.poppins(fontSize: 14.sp),
       ),
       style: ElevatedButton.styleFrom(
         backgroundColor: primaryGreen,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.r),
         ),
       ),
     );
@@ -290,12 +301,15 @@ class _AddressScreenState extends State<AddressScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        // Initialize ScreenUtil for the dialog
+        ScreenUtil.instance.init(context);
+
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(20.r),
           ),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16.w),
             child: SingleChildScrollView(
               child: Form(
                 key: _formKey,
@@ -306,23 +320,25 @@ class _AddressScreenState extends State<AddressScreen> {
                     Text(
                       'Add New Address',
                       style: GoogleFonts.poppins(
-                        fontSize: 20,
+                        fontSize: 20.sp,
                         fontWeight: FontWeight.bold,
                         color: primaryGreen,
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20.h),
                     TextFormField(
                       controller: _nameController,
                       decoration: _buildInputDecoration('Full Name'),
+                      style: GoogleFonts.poppins(fontSize: 14.sp),
                       validator: (value) => value?.isEmpty ?? true
                           ? 'Please enter your name'
                           : null,
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     TextFormField(
                       controller: _phoneController,
                       decoration: _buildInputDecoration('Phone Number'),
+                      style: GoogleFonts.poppins(fontSize: 14.sp),
                       keyboardType: TextInputType.phone,
                       validator: (value) {
                         if (value?.isEmpty ?? true)
@@ -332,10 +348,11 @@ class _AddressScreenState extends State<AddressScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     TextFormField(
                       controller: _pincodeController,
                       decoration: _buildInputDecoration('Pincode'),
+                      style: GoogleFonts.poppins(fontSize: 14.sp),
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value?.isEmpty ?? true)
@@ -350,13 +367,14 @@ class _AddressScreenState extends State<AddressScreen> {
                         }
                       },
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     Row(
                       children: [
                         Expanded(
                           child: TextFormField(
                             decoration: _buildInputDecoration('City'),
                             controller: TextEditingController(text: _city),
+                            style: GoogleFonts.poppins(fontSize: 14.sp),
                             readOnly: true,
                             validator: (value) =>
                             _city == null || _city!.isEmpty
@@ -364,11 +382,12 @@ class _AddressScreenState extends State<AddressScreen> {
                                 : null,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        SizedBox(width: 16.w),
                         Expanded(
                           child: TextFormField(
                             decoration: _buildInputDecoration('State'),
                             controller: TextEditingController(text: _state),
+                            style: GoogleFonts.poppins(fontSize: 14.sp),
                             readOnly: true,
                             validator: (value) =>
                             _state == null || _state!.isEmpty
@@ -378,25 +397,27 @@ class _AddressScreenState extends State<AddressScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     TextFormField(
                       controller: _houseController,
                       decoration:
                       _buildInputDecoration('House no / Building Name'),
+                      style: GoogleFonts.poppins(fontSize: 14.sp),
                       validator: (value) => value?.isEmpty ?? true
                           ? 'Please enter building name'
                           : null,
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     TextFormField(
                       controller: _roadController,
                       decoration:
                       _buildInputDecoration('Road Name / Area / Colony'),
+                      style: GoogleFonts.poppins(fontSize: 14.sp),
                       validator: (value) => value?.isEmpty ?? true
                           ? 'Please enter road name'
                           : null,
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -404,21 +425,31 @@ class _AddressScreenState extends State<AddressScreen> {
                           onPressed: () => Navigator.pop(context),
                           child: Text(
                             'Cancel',
-                            style: GoogleFonts.poppins(color: Colors.grey[700]),
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey[700],
+                              fontSize: 14.sp,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        SizedBox(width: 16.w),
                         ElevatedButton(
                           onPressed: () => _saveAddress(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryGreen,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16.w,
+                              vertical: 10.h,
                             ),
                           ),
                           child: Text(
                             'Save Address',
-                            style: GoogleFonts.poppins(color: Colors.white),
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 14.sp,
+                            ),
                           ),
                         ),
                       ],
@@ -478,6 +509,9 @@ class PriceDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     double subtotal = 0.0;
 
     // Calculate subtotal if cart items exist
@@ -498,7 +532,7 @@ class PriceDetailsCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -508,7 +542,7 @@ class PriceDetailsCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(20.w),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -516,11 +550,11 @@ class PriceDetailsCard extends StatelessWidget {
               'Price Details',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
+                fontSize: 18.sp,
                 color: const Color(0xFF2E7D32),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
             if (productInfo['cartItems'] != null)
               ...(productInfo['cartItems'] as List)
                   .map((item) => _buildPriceRow(
@@ -529,7 +563,7 @@ class PriceDetailsCard extends StatelessWidget {
                   .toList(),
             if (productInfo['cartItems'] != null)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: EdgeInsets.symmetric(vertical: 8.h),
                 child: Divider(height: 1, color: Colors.grey[300]),
               ),
             _buildPriceRow('Subtotal', '₹ ${subtotal.toStringAsFixed(2)}'),
@@ -541,34 +575,34 @@ class PriceDetailsCard extends StatelessWidget {
                 'Delivery Charges', '₹ ${deliveryCharges.toStringAsFixed(2)}'),
             if (subtotal < 299)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: EdgeInsets.symmetric(vertical: 8.h),
                 child: Text(
                   'FREE delivery Over ₹299',
                   style: GoogleFonts.poppins(
                     color: Colors.green,
-                    fontSize: 12,
+                    fontSize: 12.sp,
                   ),
                 ),
               )
             else
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: EdgeInsets.symmetric(vertical: 8.h),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 16),
-                    SizedBox(width: 4),
+                    Icon(Icons.check_circle, color: Colors.green, size: 16.w),
+                    SizedBox(width: 4.w),
                     Text(
                       'Free Delivery. (Order value over ₹299)',
                       style: GoogleFonts.poppins(
                         color: Colors.green,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                       ),
                     ),
                   ],
                 ),
               ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.h),
               child: Divider(height: 1),
             ),
             Row(
@@ -579,7 +613,7 @@ class PriceDetailsCard extends StatelessWidget {
                     'Total Amount\n(incl. GST & Delivery)',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 16.sp,
                     ),
                   ),
                 ),
@@ -587,7 +621,7 @@ class PriceDetailsCard extends StatelessWidget {
                   '₹ ${totalAmount.toStringAsFixed(2)}',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 16.sp,
                   ),
                 ),
               ],
@@ -599,8 +633,11 @@ class PriceDetailsCard extends StatelessWidget {
   }
 
   Widget _buildPriceRow(String label, String amount, {bool isTotal = false}) {
+    // Get ScreenUtil from the context
+    final screenUtil = ScreenUtil.instance;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(vertical: 8.h),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -608,14 +645,14 @@ class PriceDetailsCard extends StatelessWidget {
             label,
             style: GoogleFonts.poppins(
               fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              fontSize: isTotal ? 16 : 14,
+              fontSize: isTotal ? 16.sp : 14.sp,
             ),
           ),
           Text(
             amount,
             style: GoogleFonts.poppins(
               fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              fontSize: isTotal ? 16 : 14,
+              fontSize: isTotal ? 16.sp : 14.sp,
             ),
           ),
         ],
@@ -631,8 +668,11 @@ class StepperWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -681,33 +721,37 @@ class _StepCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Expanded(
       child: Column(
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 30.w,
+            height: 30.h,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isActive ? const Color(0xFF2E7D32) : Colors.grey[300],
             ),
             child: Center(
               child: isActive
-                  ? const Icon(Icons.check, color: Colors.white, size: 18)
+                  ? Icon(Icons.check, color: Colors.white, size: 18.w)
                   : Text(
                 number.toString(),
                 style: GoogleFonts.poppins(
                   color: isActive ? Colors.white : Colors.grey[600],
+                  fontSize: 14.sp,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           Text(
             title,
             style: GoogleFonts.poppins(
               color: isActive ? const Color(0xFF2E7D32) : Colors.grey[600],
-              fontSize: 12,
+              fontSize: 12.sp,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
             ),
             textAlign: TextAlign.center,
@@ -727,7 +771,7 @@ class _StepperLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        height: 2,
+        height: 2.h,
         color: isActive ? const Color(0xFF2E7D32) : Colors.grey[300],
       ),
     );
@@ -744,6 +788,9 @@ class SummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     // Calculate the delivery date (7 days from now)
     DateTime deliveryDate = DateTime.now().add(Duration(days: 7));
     String formattedDate =
@@ -762,7 +809,7 @@ class SummaryScreen extends StatelessWidget {
             const StepperWidget(currentStep: 2),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -772,7 +819,7 @@ class SummaryScreen extends StatelessWidget {
                         Text(
                           'Deliver to:',
                           style: GoogleFonts.poppins(
-                            fontSize: 20,
+                            fontSize: 20.sp,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF2E7D32),
                           ),
@@ -781,32 +828,33 @@ class SummaryScreen extends StatelessWidget {
                           onPressed: () {
                             Navigator.pop(context);
                           },
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.edit,
                             color: Color(0xFF2E7D32),
-                            size: 18,
+                            size: 18.w,
                           ),
                           label: Text(
                             'Change',
                             style: GoogleFonts.poppins(
                               color: const Color(0xFF2E7D32),
                               fontWeight: FontWeight.w500,
+                              fontSize: 14.sp,
                             ),
                           ),
                         ),
                       ],
                     ).animate().fadeIn().slideX(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     AddressCard(addressDetails: addressDetails)
                         .animate()
                         .fadeIn()
                         .slideX(),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(16.w),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(16.r),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.05),
@@ -822,11 +870,11 @@ class SummaryScreen extends StatelessWidget {
                             'Your Products',
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                              fontSize: 18.sp,
                               color: const Color(0xFF2E7D32),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16.h),
                           if (productInfo['cartItems'] != null)
                             ListView.builder(
                               shrinkWrap: true,
@@ -837,22 +885,22 @@ class SummaryScreen extends StatelessWidget {
                                 final item =
                                 (productInfo['cartItems'] as List)[index];
                                 return Container(
-                                  margin: EdgeInsets.only(bottom: 16),
-                                  padding: EdgeInsets.all(12),
+                                  margin: EdgeInsets.only(bottom: 16.h),
+                                  padding: EdgeInsets.all(12.w),
                                   decoration: BoxDecoration(
                                     border:
                                     Border.all(color: Colors.grey[200]!),
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(8.r),
                                   ),
                                   child: Row(
                                     children: [
                                       Image.network(
                                         item['image'],
-                                        height: 60,
-                                        width: 60,
+                                        height: 60.h,
+                                        width: 60.w,
                                         fit: BoxFit.cover,
                                       ),
-                                      SizedBox(width: 12),
+                                      SizedBox(width: 12.w),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -862,15 +910,15 @@ class SummaryScreen extends StatelessWidget {
                                               item['title'],
                                               style: GoogleFonts.poppins(
                                                 fontWeight: FontWeight.w500,
-                                                fontSize: 14,
+                                                fontSize: 14.sp,
                                               ),
                                             ),
-                                            SizedBox(height: 4),
+                                            SizedBox(height: 4.h),
                                             Text(
                                               'Quantity: ${item['quantity']}',
                                               style: GoogleFonts.poppins(
                                                 color: Colors.grey[600],
-                                                fontSize: 12,
+                                                fontSize: 12.sp,
                                               ),
                                             ),
                                             Text(
@@ -878,6 +926,7 @@ class SummaryScreen extends StatelessWidget {
                                               style: GoogleFonts.poppins(
                                                 fontWeight: FontWeight.w600,
                                                 color: const Color(0xFF2E7D32),
+                                                fontSize: 14.sp,
                                               ),
                                             ),
                                           ],
@@ -891,21 +940,21 @@ class SummaryScreen extends StatelessWidget {
                           else
                             Image.network(
                               productInfo['image'],
-                              height: 150,
+                              height: 150.h,
                               fit: BoxFit.cover,
                             ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16.h),
                           Text(
                             'Your order will be delivered on $formattedDate',
                             style: GoogleFonts.poppins(
-                              fontSize: 16,
+                              fontSize: 16.sp,
                               color: Colors.grey[600],
                             ),
                           ),
                         ],
                       ),
                     ).animate().fadeIn().slideX(),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     PriceDetailsCard(productInfo: productInfo)
                         .animate()
                         .fadeIn()
@@ -922,8 +971,11 @@ class SummaryScreen extends StatelessWidget {
   }
 
   Widget _buildBottomButton(BuildContext context, double totalPrice) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -949,17 +1001,17 @@ class SummaryScreen extends StatelessWidget {
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2E7D32),
-          minimumSize: const Size.fromHeight(50),
+          minimumSize: Size.fromHeight(50.h),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(25.r),
           ),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: EdgeInsets.symmetric(vertical: 12.h),
         ),
         child: Text(
           'Continue to Payment',
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -975,11 +1027,14 @@ class AddressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -995,30 +1050,30 @@ class AddressCard extends StatelessWidget {
             addressDetails['name'] ?? '',
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 16.sp,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8.h),
           Text(
             '${addressDetails['house'] ?? ''} , ${addressDetails['road'] ?? ''}',
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 14.sp,
               color: Colors.black87,
             ),
           ),
           Text(
             '${addressDetails['city'] ?? ''}, ${addressDetails['state'] ?? ''}',
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 14.sp,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8.h),
           Text(
             'Phone: ${addressDetails['phone'] ?? ''}',
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 14.sp,
               color: Colors.black87,
             ),
           ),
@@ -1187,6 +1242,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -1194,19 +1252,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
             const StepperWidget(currentStep: 3),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Payment Method',
                       style: GoogleFonts.poppins(
-                        fontSize: 24,
+                        fontSize: 24.sp,
                         fontWeight: FontWeight.bold,
                         color: const Color(0xFF2E7D32),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     _buildPaymentMethods(),
                   ],
                 ),
@@ -1221,10 +1279,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Widget _buildPaymentMethods() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1239,19 +1297,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
           Text(
             'Select Payment Method',
             style: GoogleFonts.poppins(
-              fontSize: 18,
+              fontSize: 18.sp,
               fontWeight: FontWeight.bold,
               color: const Color(0xFF2E7D32),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           _buildPaymentOption(
             icon: Icons.money,
             title: 'Cash on Delivery',
             subtitle: 'Pay when you receive your order',
             value: 'cod',
           ),
-          const Divider(height: 24),
+          Divider(height: 24.h),
           _buildPaymentOption(
             icon: Icons.payment,
             title: 'Online Payment',
@@ -1277,8 +1335,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
       },
       child: Row(
         children: [
-          Icon(icon, size: 28, color: const Color(0xFF2E7D32)),
-          const SizedBox(width: 16),
+          Icon(icon, size: 28.w, color: const Color(0xFF2E7D32)),
+          SizedBox(width: 16.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1286,14 +1344,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 Text(
                   title,
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
                   subtitle,
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
+                    fontSize: 14.sp,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -1317,7 +1375,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Widget _buildBottomButton() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -1332,17 +1390,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
         onPressed: _handlePaymentProcess,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2E7D32),
-          minimumSize: const Size.fromHeight(50),
+          minimumSize: Size.fromHeight(50.h),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(25.r),
           ),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: EdgeInsets.symmetric(vertical: 12.h),
         ),
         child: Text(
           _selectedPaymentMethod == 'cod' ? 'Place Order' : 'Proceed to Pay',
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1356,6 +1414,9 @@ class OrderSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -1365,27 +1426,27 @@ class OrderSuccessScreen extends StatelessWidget {
               Icon(
                 Icons.check_circle_outline,
                 color: const Color(0xFF2E7D32),
-                size: 100,
+                size: 100.w,
               ).animate().scale().fadeIn(),
-              const SizedBox(height: 24),
+              SizedBox(height: 24.h),
               Text(
                 'Order Successful!',
                 style: GoogleFonts.poppins(
-                  fontSize: 24,
+                  fontSize: 24.sp,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF2E7D32),
                 ),
               ).animate().fadeIn().slideY(),
-              const SizedBox(height: 16),
+              SizedBox(height: 16.h),
               Text(
                 'Your order has been placed successfully.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   color: Colors.grey[600],
                 ),
               ).animate().fadeIn().slideY(),
-              const SizedBox(height: 24),
+              SizedBox(height: 24.h),
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pushAndRemoveUntil(
@@ -1398,16 +1459,16 @@ class OrderSuccessScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2E7D32),
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  EdgeInsets.symmetric(horizontal: 32.w, vertical: 16.h),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+                    borderRadius: BorderRadius.circular(25.r),
                   ),
                   elevation: 0,
                 ),
                 child: Text(
                   'Back to Home',
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

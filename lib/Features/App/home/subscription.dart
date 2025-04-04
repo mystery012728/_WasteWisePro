@@ -296,7 +296,7 @@ class _AddressScreenState extends State<AddressScreen> {
                             horizontal: 24, vertical: 12),
                       ),
                       child: Text(
-                        'Save Address',
+                        'Save',
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
                         ),

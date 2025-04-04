@@ -305,7 +305,7 @@ class OnboardingContent extends StatelessWidget {
             title,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
-              fontSize: 28.sp,
+              fontSize: 24.sp,
               fontWeight: FontWeight.bold,
               color: Colors.green.shade800,
             ),
@@ -318,9 +318,9 @@ class OnboardingContent extends StatelessWidget {
             description,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
-              fontSize: 16.sp,
+              fontSize: 14.sp,
               color: Colors.grey[600],
-              height: 1.5,
+              height: 1.4,
             ),
           )
               .animate()

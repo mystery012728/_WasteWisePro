@@ -274,12 +274,15 @@ class _AddressScreenState extends State<AddressScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                       ),
                       child: Text(
-                        'Save Address',
+                        'Save',
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
                     ),

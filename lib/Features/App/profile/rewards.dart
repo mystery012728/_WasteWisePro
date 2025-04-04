@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutternew/Features/App/User_auth/util/smack_bar.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -329,13 +330,16 @@ class _RewardsPageState extends State<RewardsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         elevation: 0,
         backgroundColor: primaryColor,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.white)
+          icon: Icon(Icons.arrow_back_ios, color: Colors.white, size: 20.w)
               .animate()
               .fade()
               .scale(delay: 200.ms),
@@ -346,7 +350,7 @@ class _RewardsPageState extends State<RewardsPage> {
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontSize: 18.sp,
           ),
         ),
       ),
@@ -358,12 +362,12 @@ class _RewardsPageState extends State<RewardsPage> {
                 ? Center(child: CircularProgressIndicator(color: primaryColor))
                 : SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(16.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildRewardsSummary(),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     _buildRecentActivities(),
                   ]
                       .animate(interval: 200.ms)
@@ -381,11 +385,11 @@ class _RewardsPageState extends State<RewardsPage> {
   Widget _buildToggleBar() {
     return Container(
       color: primaryColor,
-      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+      padding: EdgeInsets.only(left: 16.w, right: 16.w, bottom: 16.h),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.green.shade800,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(30.r),
         ),
         child: Row(
           children: [
@@ -400,10 +404,10 @@ class _RewardsPageState extends State<RewardsPage> {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
                   decoration: BoxDecoration(
                     color: isMonthlyView ? Colors.white : Colors.transparent,
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(30.r),
                   ),
                   child: Center(
                     child: Text(
@@ -411,6 +415,7 @@ class _RewardsPageState extends State<RewardsPage> {
                       style: GoogleFonts.poppins(
                         color: isMonthlyView ? primaryColor : Colors.white,
                         fontWeight: FontWeight.w600,
+                        fontSize: 14.sp,
                       ),
                     ),
                   ),
@@ -428,10 +433,10 @@ class _RewardsPageState extends State<RewardsPage> {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
                   decoration: BoxDecoration(
                     color: !isMonthlyView ? Colors.white : Colors.transparent,
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(30.r),
                   ),
                   child: Center(
                     child: Text(
@@ -439,6 +444,7 @@ class _RewardsPageState extends State<RewardsPage> {
                       style: GoogleFonts.poppins(
                         color: !isMonthlyView ? primaryColor : Colors.white,
                         fontWeight: FontWeight.w600,
+                        fontSize: 14.sp,
                       ),
                     ),
                   ),
@@ -458,10 +464,10 @@ class _RewardsPageState extends State<RewardsPage> {
     final isComplete = totalWasteCollected >= goal;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.green.withOpacity(0.1),
@@ -481,15 +487,15 @@ class _RewardsPageState extends State<RewardsPage> {
                   Text(
                     '$period Progress',
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: 16.sp,
                       color: Colors.grey[600],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8.h),
                   Text(
                     'Goal ${goal.toInt()}kg',
                     style: GoogleFonts.poppins(
-                      fontSize: 32,
+                      fontSize: 28.sp,
                       fontWeight: FontWeight.bold,
                       color: primaryColor,
                     ),
@@ -497,7 +503,7 @@ class _RewardsPageState extends State<RewardsPage> {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12.w),
                 decoration: BoxDecoration(
                   color: Colors.green[50],
                   shape: BoxShape.circle,
@@ -505,31 +511,31 @@ class _RewardsPageState extends State<RewardsPage> {
                 child: Icon(
                   isComplete ? Icons.celebration : Icons.eco,
                   color: primaryColor,
-                  size: 32,
+                  size: 28.w,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20.h),
           LinearProgressIndicator(
             value:
             totalWasteCollected / goal > 1 ? 1 : totalWasteCollected / goal,
             backgroundColor: Colors.grey[200],
             valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-            minHeight: 8,
+            minHeight: 8.h,
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10.h),
           Text(
             isComplete
                 ? 'Congratulations! You\'ve reached your goal!'
                 : '${(goal - totalWasteCollected).toStringAsFixed(1)} kg more until next reward',
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 14.sp,
               color: isComplete ? primaryColor : Colors.grey[600],
               fontWeight: isComplete ? FontWeight.bold : FontWeight.normal,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -543,25 +549,25 @@ class _RewardsPageState extends State<RewardsPage> {
 
           // Show redeem button only if goal is completed and not yet redeemed
           if (isComplete && !isGoalRedeemed) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
             ElevatedButton.icon(
               onPressed: _showRedemptionForm,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 padding:
-                const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                EdgeInsets.symmetric(vertical: 12.h, horizontal: 24.w),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(30.r),
                 ),
                 minimumSize: Size(double.infinity, 0), // full width
               ),
-              icon: Icon(Icons.card_giftcard, color: Colors.white),
+              icon: Icon(Icons.card_giftcard, color: Colors.white, size: 20.w),
               label: Text(
                 'Redeem Your Reward',
                 style: GoogleFonts.poppins(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                 ),
               ),
             ).animate().fadeIn(delay: 300.ms).scale(),
@@ -569,24 +575,25 @@ class _RewardsPageState extends State<RewardsPage> {
 
           // Show redeemed status if already redeemed
           if (isComplete && isGoalRedeemed) ...[
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 16.w),
               decoration: BoxDecoration(
                 color: Colors.green[50],
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(20.r),
                 border: Border.all(color: primaryColor, width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle, color: primaryColor, size: 18),
-                  const SizedBox(width: 8),
+                  Icon(Icons.check_circle, color: primaryColor, size: 18.w),
+                  SizedBox(width: 8.w),
                   Text(
                     'Reward Redeemed',
                     style: GoogleFonts.poppins(
                       color: primaryColor,
                       fontWeight: FontWeight.w500,
+                      fontSize: 14.sp,
                     ),
                   ),
                 ],
@@ -604,15 +611,15 @@ class _RewardsPageState extends State<RewardsPage> {
         Text(
           label,
           style: GoogleFonts.poppins(
-            fontSize: 12,
+            fontSize: 12.sp,
             color: Colors.grey[600],
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4.h),
         Text(
           value,
           style: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 14.sp,
             fontWeight: FontWeight.bold,
             color: primaryColor,
           ),
@@ -630,19 +637,19 @@ class _RewardsPageState extends State<RewardsPage> {
         Text(
           '$periodType Activities',
           style: GoogleFonts.poppins(
-            fontSize: 18,
+            fontSize: 18.sp,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
         if (recentActivities.isEmpty)
           Center(
             child: Text(
               'No recent activities',
               style: GoogleFonts.poppins(
                 color: Colors.grey[600],
-                fontSize: 16,
+                fontSize: 16.sp,
               ),
             ),
           )
@@ -666,11 +673,11 @@ class _RewardsPageState extends State<RewardsPage> {
     required String date,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 12.h),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -682,14 +689,14 @@ class _RewardsPageState extends State<RewardsPage> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(8.w),
             decoration: BoxDecoration(
               color: Colors.green[50],
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
             ),
-            child: Icon(icon, color: primaryColor),
+            child: Icon(icon, color: primaryColor, size: 20.w),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,13 +705,14 @@ class _RewardsPageState extends State<RewardsPage> {
                   title,
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w500,
+                    fontSize: 14.sp,
                   ),
                 ),
                 Text(
                   date,
                   style: GoogleFonts.poppins(
                     color: Colors.grey[600],
-                    fontSize: 12,
+                    fontSize: 12.sp,
                   ),
                 ),
               ],
@@ -715,6 +723,7 @@ class _RewardsPageState extends State<RewardsPage> {
             style: GoogleFonts.poppins(
               color: primaryColor,
               fontWeight: FontWeight.bold,
+              fontSize: 14.sp,
             ),
           ),
         ],
@@ -809,24 +818,27 @@ class _AddressScreenState extends State<AddressScreen> {
   }
 
   InputDecoration _buildInputDecoration(String label) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return InputDecoration(
       labelText: label,
-      labelStyle: GoogleFonts.poppins(color: Colors.grey[600]),
+      labelStyle: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 14.sp),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         borderSide: BorderSide(color: Colors.grey[300]!),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         borderSide: BorderSide(color: Colors.grey[300]!),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         borderSide: BorderSide(color: primaryGreen, width: 2),
       ),
       filled: true,
       fillColor: Colors.grey[50],
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
     );
   }
 
@@ -845,13 +857,16 @@ class _AddressScreenState extends State<AddressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20.r),
       ),
       elevation: 8,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16.w),
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -862,24 +877,24 @@ class _AddressScreenState extends State<AddressScreen> {
                 Text(
                   'Add Delivery Address',
                   style: GoogleFonts.poppins(
-                    fontSize: 20,
+                    fontSize: 20.sp,
                     fontWeight: FontWeight.bold,
                     color: primaryGreen,
                   ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20.h),
                 TextFormField(
                   controller: _nameController,
                   decoration: _buildInputDecoration('Full Name'),
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.poppins(fontSize: 14.sp),
                   validator: (value) =>
                   value?.isEmpty ?? true ? 'Please enter your name' : null,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 TextFormField(
                   controller: _mobileController,
                   decoration: _buildInputDecoration('Mobile Number'),
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.poppins(fontSize: 14.sp),
                   keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value?.isEmpty ?? true)
@@ -889,29 +904,29 @@ class _AddressScreenState extends State<AddressScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 TextFormField(
                   controller: _houseController,
                   decoration: _buildInputDecoration('House no / Building Name'),
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.poppins(fontSize: 14.sp),
                   validator: (value) => value?.isEmpty ?? true
                       ? 'Please enter building name'
                       : null,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 TextFormField(
                   controller: _roadController,
                   decoration:
                   _buildInputDecoration('Road Name / Area / Colony'),
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.poppins(fontSize: 14.sp),
                   validator: (value) =>
                   value?.isEmpty ?? true ? 'Please enter road name' : null,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 TextFormField(
                   controller: _pincodeController,
                   decoration: _buildInputDecoration('Pincode'),
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.poppins(fontSize: 14.sp),
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value?.isEmpty ?? true) return 'Please enter pincode';
@@ -930,7 +945,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     }
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 Row(
                   children: [
                     Expanded(
@@ -939,7 +954,7 @@ class _AddressScreenState extends State<AddressScreen> {
                           TextFormField(
                             decoration: _buildInputDecoration('City'),
                             controller: TextEditingController(text: _city),
-                            style: GoogleFonts.poppins(),
+                            style: GoogleFonts.poppins(fontSize: 14.sp),
                             readOnly: true,
                             enabled: !_isLoading,
                             validator: (value) =>
@@ -952,8 +967,8 @@ class _AddressScreenState extends State<AddressScreen> {
                               right: 10,
                               top: 15,
                               child: SizedBox(
-                                height: 20,
-                                width: 20,
+                                height: 20.h,
+                                width: 20.w,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
@@ -964,12 +979,12 @@ class _AddressScreenState extends State<AddressScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 16.w),
                     Expanded(
                       child: TextFormField(
                         decoration: _buildInputDecoration('State'),
                         controller: TextEditingController(text: _state),
-                        style: GoogleFonts.poppins(),
+                        style: GoogleFonts.poppins(fontSize: 14.sp),
                         readOnly: true,
                         enabled: !_isLoading,
                         validator: (value) => _state == null || _state!.isEmpty
@@ -979,7 +994,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24.h),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -990,25 +1005,26 @@ class _AddressScreenState extends State<AddressScreen> {
                       ),
                       child: Text(
                         'Cancel',
-                        style: GoogleFonts.poppins(),
+                        style: GoogleFonts.poppins(fontSize: 14.sp),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 16.w),
                     ElevatedButton(
                       onPressed: _submitAddress,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryGreen,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 24.w, vertical: 12.h),
                       ),
                       child: Text(
                         'Save Address',
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
+                          fontSize: 14.sp,
                         ),
                       ),
                     ),

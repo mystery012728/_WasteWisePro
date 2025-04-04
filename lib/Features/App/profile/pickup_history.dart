@@ -26,7 +26,9 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   double totalCarbonFootprint = 0.0;
   double totalEarnings = 0.0;
   bool isGeneratingPDF = false;
-  int maxPagesPerDocument = 50; // Maximum pages per PDF document
+  int maxPagesPerDocument =
+      20; // Reduced maximum pages per document for better handling
+  int itemsPerPage = 8; // Number of items to display per page
   String selectedFilter = 'All';
 
   // Track which history type is selected
@@ -36,6 +38,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   Map<String, dynamic> subscriptionStats = {
     'totalWeight': 0.0,
     'carbonFootprint': 0.0,
+    'totalEarnings': 0.0, // Will not be displayed for subscription
     'successful': 0,
     'missed': 0,
     'cancelled': 0,
@@ -44,13 +47,6 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   Map<String, dynamic> specialDayStats = {
     'totalWeight': 0.0,
     'carbonFootprint': 0.0,
-    'successful': 0,
-    'missed': 0,
-    'cancelled': 0,
-  };
-
-  Map<String, dynamic> scrapStats = {
-    'totalWeight': 0.0,
     'totalEarnings': 0.0,
     'successful': 0,
     'missed': 0,
@@ -74,6 +70,15 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     'general_waste': 2.5
   };
 
+  // Scrap price per kg
+  final Map<String, double> scrapPrices = {
+    'News Paper': 15.0,
+    'Office Paper(A3/A4)': 15.0,
+    'Books': 12.0,
+    'Cardboard': 8.0,
+    'Plastic': 10.0,
+  };
+
   @override
   void initState() {
     super.initState();
@@ -95,6 +100,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     subscriptionStats = {
       'totalWeight': 0.0,
       'carbonFootprint': 0.0,
+      'totalEarnings': 0.0,
       'successful': 0,
       'missed': 0,
       'cancelled': 0,
@@ -103,15 +109,9 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     specialDayStats = {
       'totalWeight': 0.0,
       'carbonFootprint': 0.0,
-      'successful': 0,
-      'missed': 0,
-      'cancelled': 0,
-    };
-
-    scrapStats = {
-      'totalWeight': 0.0,
       'totalEarnings': 0.0,
       'successful': 0,
+      'missed': 0,
       'cancelled': 0,
     };
 
@@ -138,12 +138,12 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       if (selectedHistoryType == 'subscription') {
         totalMonthlyWeight = subscriptionStats['totalWeight'];
         totalCarbonFootprint = subscriptionStats['carbonFootprint'];
+        // Don't set totalEarnings for subscription
+        totalEarnings = 0.0;
       } else if (selectedHistoryType == 'special_day') {
         totalMonthlyWeight = specialDayStats['totalWeight'];
         totalCarbonFootprint = specialDayStats['carbonFootprint'];
-      } else {
-        totalMonthlyWeight = scrapStats['totalWeight'];
-        totalEarnings = scrapStats['totalEarnings'];
+        totalEarnings = specialDayStats['totalEarnings'];
       }
     });
   }
@@ -166,18 +166,14 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     for (var doc in pickups.docs) {
       final data = doc.data();
 
-      // Determine if this is a subscription, special day, or scrap pickup
+      // Determine if this is a subscription or special day pickup
       final bool isSpecialDay = data['special_day_id'] != null;
       final bool isSubscription = data['subscription_id'] != null;
       final bool isScrap =
           data['waste_type'] == 'scrap' || data['scrap_details_id'] != null;
 
       // Update count stats
-      if (isScrap) {
-        if (isSuccessful)
-          scrapStats['successful']++;
-        else if (isCancelled) scrapStats['cancelled']++;
-      } else if (isSpecialDay) {
+      if (isSpecialDay) {
         if (isSuccessful)
           specialDayStats['successful']++;
         else if (isCancelled) specialDayStats['cancelled']++;
@@ -187,7 +183,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
         else if (isCancelled) subscriptionStats['cancelled']++;
       }
 
-      // Only calculate weight and carbon footprint/earnings for successful pickups
+      // Only calculate weight, carbon footprint, and earnings for successful pickups
       if (!isSuccessful) continue;
 
       double weight = 0.0;
@@ -238,7 +234,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
           });
         }
 
-        // Check for scrap weights
+        // Check for scrap weights and calculate earnings
         if (data['scrap_weights'] != null) {
           final scrapWeights = data['scrap_weights'] as Map<String, dynamic>;
           scrapWeights.forEach((type, typeWeight) {
@@ -247,8 +243,18 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
               weight += weightValue;
               double carbonFactor = carbonFactors[type] ?? 2.5;
               carbonFootprint += weightValue * carbonFactor;
+
+              // Calculate earnings for scrap items
+              double pricePerKg = scrapPrices[type] ?? 0.0;
+              earnings += weightValue * pricePerKg;
             }
           });
+        }
+
+        // Get total scrap price directly if available
+        if (data['total_scrap_price'] != null &&
+            data['total_scrap_price'] is num) {
+          earnings = (data['total_scrap_price'] as num).toDouble();
         }
 
         // Fallback to waste_weights if the specific categories aren't found
@@ -260,73 +266,26 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
               weight += weightValue;
               double carbonFactor = carbonFactors[type] ?? 2.5;
               carbonFootprint += weightValue * carbonFactor;
-            }
-          });
-        }
-      }
-      // Process weights for scrap pickups
-      else if (isScrap) {
-        // Get total scrap weight directly if available
-        if (data['total_scrap_weight'] != null &&
-            data['total_scrap_weight'] is num) {
-          weight = (data['total_scrap_weight'] as num).toDouble();
-        }
-        // Otherwise calculate from individual weights
-        else if (data['scrap_weights'] != null) {
-          final scrapWeights = data['scrap_weights'] as Map<String, dynamic>;
-          scrapWeights.forEach((type, typeWeight) {
-            if (typeWeight is num) {
-              final double weightValue = typeWeight.toDouble();
-              weight += weightValue;
-            }
-          });
-        }
 
-        // Get total scrap price directly if available
-        if (data['total_scrap_price'] != null &&
-            data['total_scrap_price'] is num) {
-          earnings = (data['total_scrap_price'] as num).toDouble();
-        }
-        // Otherwise calculate from individual weights and prices
-        else if (data['scrap_weights'] != null) {
-          final scrapWeights = data['scrap_weights'] as Map<String, dynamic>;
-          scrapWeights.forEach((type, typeWeight) {
-            if (typeWeight is num) {
-              final double weightValue = typeWeight.toDouble();
-              double pricePerKg = 0.0;
-              switch (type) {
-                case 'News Paper':
-                  pricePerKg = 15;
-                  break;
-                case 'Office Paper(A3/A4)':
-                  pricePerKg = 15;
-                  break;
-                case 'Books':
-                  pricePerKg = 12;
-                  break;
-                case 'Cardboard':
-                  pricePerKg = 8;
-                  break;
-                case 'Plastic':
-                  pricePerKg = 10;
-                  break;
+              // Calculate earnings if it's a scrap type
+              if (scrapPrices.containsKey(type)) {
+                earnings += weightValue * scrapPrices[type]!;
               }
-              earnings += weightValue * pricePerKg;
             }
           });
         }
       }
 
       // Add to appropriate stats
-      if (isScrap) {
-        scrapStats['totalWeight'] += weight;
-        scrapStats['totalEarnings'] += earnings;
-      } else if (isSpecialDay) {
+      if (isSpecialDay) {
         specialDayStats['totalWeight'] += weight;
         specialDayStats['carbonFootprint'] += carbonFootprint;
+        specialDayStats['totalEarnings'] += earnings;
       } else if (isSubscription) {
         subscriptionStats['totalWeight'] += weight;
         subscriptionStats['carbonFootprint'] += carbonFootprint;
+        // Still track earnings for subscription pickups for PDF reports
+        subscriptionStats['totalEarnings'] += earnings;
       }
     }
   }
@@ -398,10 +357,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
         if ((selectedHistoryType == 'subscription' &&
                 data['subscription_id'] != null) ||
             (selectedHistoryType == 'special_day' &&
-                data['special_day_id'] != null) ||
-            (selectedHistoryType == 'scrap' &&
-                (data['waste_type'] == 'scrap' ||
-                    data['scrap_details_id'] != null))) {
+                data['special_day_id'] != null)) {
           allPickups.add({
             ...data,
             'status': 'successful',
@@ -416,10 +372,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
         if ((selectedHistoryType == 'subscription' &&
                 data['subscription_id'] != null) ||
             (selectedHistoryType == 'special_day' &&
-                data['special_day_id'] != null) ||
-            (selectedHistoryType == 'scrap' &&
-                (data['waste_type'] == 'scrap' ||
-                    data['scrap_details_id'] != null))) {
+                data['special_day_id'] != null)) {
           allPickups.add({
             ...data,
             'status': 'cancelled',
@@ -437,11 +390,12 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
 
       // Chunk the pickups for PDF generation
       final List<List<Map<String, dynamic>>> chunks = [];
-      final int docsPerChunk = 10;
+      // Calculate how many items we can fit in one document
+      final int itemsPerDocument = maxPagesPerDocument * itemsPerPage;
 
-      for (var i = 0; i < allPickups.length; i += docsPerChunk) {
-        final end = (i + docsPerChunk < allPickups.length)
-            ? i + docsPerChunk
+      for (var i = 0; i < allPickups.length; i += itemsPerDocument) {
+        final end = (i + itemsPerDocument < allPickups.length)
+            ? i + itemsPerDocument
             : allPickups.length;
         chunks.add(allPickups.sublist(i, end));
       }
@@ -449,9 +403,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       // Get stats based on selected history type
       final stats = selectedHistoryType == 'subscription'
           ? subscriptionStats
-          : selectedHistoryType == 'special_day'
-              ? specialDayStats
-              : scrapStats;
+          : specialDayStats;
 
       final List<File> pdfFiles = [];
       int fileCounter = 1;
@@ -462,7 +414,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
         double totalCarbonFootprint = 0;
         double totalEarnings = 0;
 
-        // Calculate total weight and carbon footprint for this chunk
+        // Calculate total weight, carbon footprint, and earnings for this chunk
         for (var data in chunk) {
           if (data['status'] == 'successful') {
             double docWeight = 0.0;
@@ -481,6 +433,11 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                     docWeight += weightValue;
                     double carbonFactor = carbonFactors[type] ?? 2.5;
                     docCarbonFootprint += weightValue * carbonFactor;
+
+                    // Calculate earnings if it's a scrap type
+                    if (scrapPrices.containsKey(type)) {
+                      docEarnings += weightValue * scrapPrices[type]!;
+                    }
                   }
                 });
               }
@@ -515,7 +472,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                 });
               }
 
-              // Check scrap weights
+              // Check scrap weights and calculate earnings
               if (data['scrap_weights'] != null) {
                 final weights = data['scrap_weights'] as Map<String, dynamic>;
                 weights.forEach((type, weight) {
@@ -524,8 +481,18 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                     docWeight += weightValue;
                     double carbonFactor = carbonFactors[type] ?? 2.5;
                     docCarbonFootprint += weightValue * carbonFactor;
+
+                    // Calculate earnings for scrap items
+                    double pricePerKg = scrapPrices[type] ?? 0.0;
+                    docEarnings += weightValue * pricePerKg;
                   }
                 });
+              }
+
+              // Get total scrap price directly if available
+              if (data['total_scrap_price'] != null &&
+                  data['total_scrap_price'] is num) {
+                docEarnings = (data['total_scrap_price'] as num).toDouble();
               }
 
               // Fallback to waste_weights if specific categories aren't found
@@ -537,59 +504,11 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                     docWeight += weightValue;
                     double carbonFactor = carbonFactors[type] ?? 2.5;
                     docCarbonFootprint += weightValue * carbonFactor;
-                  }
-                });
-              }
-            } else if (selectedHistoryType == 'scrap' &&
-                (data['waste_type'] == 'scrap' ||
-                    data['scrap_details_id'] != null)) {
-              // Handle scrap pickups
 
-              // Get total scrap weight directly if available
-              if (data['total_scrap_weight'] != null &&
-                  data['total_scrap_weight'] is num) {
-                docWeight = (data['total_scrap_weight'] as num).toDouble();
-              }
-              // Otherwise calculate from individual weights
-              else if (data['scrap_weights'] != null) {
-                final weights = data['scrap_weights'] as Map<String, dynamic>;
-                weights.forEach((type, weight) {
-                  if (weight is num) {
-                    docWeight += weight.toDouble();
-                  }
-                });
-              }
-
-              // Get total scrap price directly if available
-              if (data['total_scrap_price'] != null &&
-                  data['total_scrap_price'] is num) {
-                docEarnings = (data['total_scrap_price'] as num).toDouble();
-              }
-              // Otherwise calculate from individual weights and prices
-              else if (data['scrap_weights'] != null) {
-                final weights = data['scrap_weights'] as Map<String, dynamic>;
-                weights.forEach((type, weight) {
-                  if (weight is num) {
-                    final double weightValue = weight.toDouble();
-                    double pricePerKg = 0.0;
-                    switch (type) {
-                      case 'News Paper':
-                        pricePerKg = 15;
-                        break;
-                      case 'Office Paper(A3/A4)':
-                        pricePerKg = 15;
-                        break;
-                      case 'Books':
-                        pricePerKg = 12;
-                        break;
-                      case 'Cardboard':
-                        pricePerKg = 8;
-                        break;
-                      case 'Plastic':
-                        pricePerKg = 10;
-                        break;
+                    // Calculate earnings if it's a scrap type
+                    if (scrapPrices.containsKey(type)) {
+                      docEarnings += weightValue * scrapPrices[type]!;
                     }
-                    docEarnings += weightValue * pricePerKg;
                   }
                 });
               }
@@ -614,22 +533,26 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
             header: (context) => _buildPDFHeader(context),
             footer: (context) => _buildPDFFooter(context),
             build: (context) => [
-              selectedHistoryType == 'scrap'
-                  ? _buildPDFScrapSummarySection(
-                      totalWeight,
-                      totalEarnings,
-                      stats['successful'],
-                      stats['missed'],
-                      stats['cancelled'],
-                    )
-                  : _buildPDFSummarySection(
-                      totalWeight,
-                      totalCarbonFootprint,
-                      stats['successful'],
-                      stats['missed'],
-                      stats['cancelled'],
-                    ),
-              _buildPDFAllPickupsSection(chunk),
+              _buildPDFSummarySection(
+                totalWeight,
+                totalCarbonFootprint,
+                selectedHistoryType == 'special_day'
+                    ? totalEarnings
+                    : 0.0, // Only show earnings for special day
+                stats['successful'],
+                stats['missed'],
+                stats['cancelled'],
+              ),
+              // Split the chunk into pages
+              for (var i = 0; i < chunk.length; i += itemsPerPage)
+                _buildPDFAllPickupsSection(
+                  chunk.sublist(
+                    i,
+                    i + itemsPerPage > chunk.length
+                        ? chunk.length
+                        : i + itemsPerPage,
+                  ),
+                ),
             ],
           ),
         );
@@ -637,9 +560,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
         final output = await getTemporaryDirectory();
         final historyType = selectedHistoryType == 'subscription'
             ? 'Subscription'
-            : selectedHistoryType == 'special_day'
-                ? 'Special Day'
-                : 'Scrap';
+            : 'Special Day';
         final file = File(
           '${output.path}/WasteWisePro_${historyType}_Report_${DateFormat('MMM_yyyy').format(selectedStartDate)}_part$fileCounter.pdf',
         );
@@ -651,9 +572,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
       if (pdfFiles.isNotEmpty) {
         final historyType = selectedHistoryType == 'subscription'
             ? 'Subscription'
-            : selectedHistoryType == 'special_day'
-                ? 'Special Day'
-                : 'Scrap';
+            : 'Special Day';
         await Share.shareFiles(
           pdfFiles.map((f) => f.path!).toList(),
           text:
@@ -677,11 +596,8 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   }
 
   pw.Widget _buildPDFHeader(pw.Context context) {
-    final historyType = selectedHistoryType == 'subscription'
-        ? 'Subscription'
-        : selectedHistoryType == 'special_day'
-            ? 'Special Day'
-            : 'Scrap';
+    final historyType =
+        selectedHistoryType == 'subscription' ? 'Subscription' : 'Special Day';
 
     return pw.Container(
       padding: pw.EdgeInsets.all(20),
@@ -750,6 +666,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   pw.Widget _buildPDFSummarySection(
     double totalWeight,
     double totalCarbonFootprint,
+    double totalEarnings,
     int successfulPickups,
     int missedPickups,
     int cancelledPickups,
@@ -785,61 +702,21 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
           ),
           pw.SizedBox(height: 10),
           pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildPDFSummaryItem(
-                  'Successful Pickups', successfulPickups.toString()),
-              _buildPDFSummaryItem(
-                  'Cancelled Pickups', cancelledPickups.toString()),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _buildPDFScrapSummarySection(
-    double totalWeight,
-    double totalEarnings,
-    int successfulPickups,
-    int missedPickups,
-    int cancelledPickups,
-  ) {
-    return pw.Container(
-      padding: pw.EdgeInsets.all(15),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.green200),
-        borderRadius: pw.BorderRadius.circular(10),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Center(
-            child: pw.Text(
-              'Summary',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.green900,
-              ),
-            ),
-          ),
-          pw.SizedBox(height: 10),
-          pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
+              // Only show earnings for special day history
+              selectedHistoryType == 'special_day'
+                  ? _buildPDFSummaryItem(
+                      'Total Earnings', '₹${totalEarnings.toStringAsFixed(2)}')
+                  : pw.Container(),
               _buildPDFSummaryItem(
-                  'Total Weight', '${totalWeight.toStringAsFixed(2)} kg'),
-              _buildPDFSummaryItem(
-                  'Total Earnings', '₹${totalEarnings.toStringAsFixed(2)}'),
+                  'Successful Pickups', successfulPickups.toString()),
             ],
           ),
           pw.SizedBox(height: 10),
           pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: pw.MainAxisAlignment.center,
             children: [
-              _buildPDFSummaryItem(
-                  'Successful Pickups', successfulPickups.toString()),
               _buildPDFSummaryItem(
                   'Cancelled Pickups', cancelledPickups.toString()),
             ],
@@ -900,10 +777,9 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
               0: pw.FlexColumnWidth(1.2), // Date
               1: pw.FlexColumnWidth(0.8), // Time
               2: pw.FlexColumnWidth(1.0), // Status
-              3: pw.FlexColumnWidth(
-                  2.0), // Waste Type - more space for longer text
-              4: pw.FlexColumnWidth(
-                  1.5), // Weight - more space for detailed weights
+              3: pw.FlexColumnWidth(2.0), // Waste Type
+              4: pw.FlexColumnWidth(1.5), // Weight
+              5: pw.FlexColumnWidth(1.5), // Earnings (only for special day)
             },
             children: [
               // Table header
@@ -916,9 +792,11 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                   _buildPDFTableHeader('Time'),
                   _buildPDFTableHeader('Status'),
                   _buildPDFTableHeader('Waste Type'),
-                  selectedHistoryType == 'scrap'
-                      ? _buildPDFTableHeader('Price (₹)')
-                      : _buildPDFTableHeader('Weight (kg)'),
+                  _buildPDFTableHeader('Weight (kg)'),
+                  // Only show earnings column for special day
+                  selectedHistoryType == 'special_day'
+                      ? _buildPDFTableHeader('Earnings (₹)')
+                      : pw.Container(),
                 ],
               ),
               // Table rows
@@ -955,12 +833,16 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                     _buildPDFTableCell(_getWasteTypeString(data),
                         allowWrap: true),
                     _buildPDFTableCell(
-                        status == 'successful'
-                            ? selectedHistoryType == 'scrap'
-                                ? _getPriceString(data)
-                                : _getWeightString(data)
-                            : 'N/A',
+                        status == 'successful' ? _getWeightString(data) : 'N/A',
                         allowWrap: true),
+                    // Only show earnings for special day
+                    selectedHistoryType == 'special_day'
+                        ? _buildPDFTableCell(
+                            status == 'successful'
+                                ? _getEarningsString(data)
+                                : 'N/A',
+                            allowWrap: true)
+                        : pw.Container(),
                   ],
                 );
               }).toList(),
@@ -1104,59 +986,44 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
     return weightStrings.join('\n');
   }
 
-  // Add a method to format price string for scrap pickups
-  String _getPriceString(Map<String, dynamic> data) {
+  // Add a method to format earnings string for pickups
+  String _getEarningsString(Map<String, dynamic> data) {
     // Check for total_scrap_price field
     if (data['total_scrap_price'] != null && data['total_scrap_price'] is num) {
       return '₹${(data['total_scrap_price'] as num).toDouble().toStringAsFixed(2)}';
     }
 
     // If no total price, calculate from weights and prices
-    double totalPrice = 0.0;
-    List<String> priceStrings = [];
+    double totalEarnings = 0.0;
+    List<String> earningsStrings = [];
 
     if (data['scrap_weights'] != null) {
       final weights = data['scrap_weights'] as Map<String, dynamic>;
       weights.forEach((type, weight) {
         if (weight is num) {
-          double pricePerKg = 0.0;
-          switch (type) {
-            case 'News Paper':
-              pricePerKg = 15;
-              break;
-            case 'Office Paper(A3/A4)':
-              pricePerKg = 15;
-              break;
-            case 'Books':
-              pricePerKg = 12;
-              break;
-            case 'Cardboard':
-              pricePerKg = 8;
-              break;
-            case 'Plastic':
-              pricePerKg = 10;
-              break;
+          double pricePerKg = scrapPrices[type] ?? 0.0;
+          double itemEarnings = weight.toDouble() * pricePerKg;
+          totalEarnings += itemEarnings;
+          if (pricePerKg > 0) {
+            earningsStrings.add(
+                '${type.replaceAll('_', ' ')}: ₹${itemEarnings.toStringAsFixed(2)}');
           }
-          double itemPrice = weight.toDouble() * pricePerKg;
-          totalPrice += itemPrice;
-          priceStrings.add(
-              '${type.replaceAll('_', ' ')}: ₹${itemPrice.toStringAsFixed(2)}');
         }
       });
     }
 
-    // If no prices found
-    if (priceStrings.isEmpty) {
-      return 'N/A';
+    // If no earnings found
+    if (earningsStrings.isEmpty) {
+      return totalEarnings > 0 ? '₹${totalEarnings.toStringAsFixed(2)}' : 'N/A';
     }
 
-    // If there are multiple prices, show total and details
-    if (priceStrings.length > 1) {
-      return 'Total: ₹${totalPrice.toStringAsFixed(2)}\n' +
-          priceStrings.join('\n');
+    // If there are multiple earnings, show total and details
+    if (earningsStrings.length > 1) {
+      return 'Total: ₹${totalEarnings.toStringAsFixed(2)}\n' +
+          earningsStrings.join('\n');
     }
 
-    return priceStrings.join('\n');
+    return earningsStrings.join('\n');
   }
 
   pw.Widget _buildPDFTableHeader(String text) {
@@ -1260,6 +1127,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                   selectedHistoryType = 'subscription';
                   totalMonthlyWeight = subscriptionStats['totalWeight'];
                   totalCarbonFootprint = subscriptionStats['carbonFootprint'];
+                  totalEarnings = 0.0; // Don't show earnings for subscription
                 });
                 _calculateStats();
               },
@@ -1294,6 +1162,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                   selectedHistoryType = 'special_day';
                   totalMonthlyWeight = specialDayStats['totalWeight'];
                   totalCarbonFootprint = specialDayStats['carbonFootprint'];
+                  totalEarnings = specialDayStats['totalEarnings'];
                 });
                 _calculateStats();
               },
@@ -1310,40 +1179,6 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
                     'Special Day History',
                     style: GoogleFonts.poppins(
                       color: selectedHistoryType == 'special_day'
-                          ? Colors.white
-                          : Colors.black,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14.sp,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  selectedHistoryType = 'scrap';
-                  totalMonthlyWeight = scrapStats['totalWeight'];
-                  totalEarnings = scrapStats['totalEarnings'];
-                });
-                _calculateStats();
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 12.h),
-                decoration: BoxDecoration(
-                  color: selectedHistoryType == 'scrap'
-                      ? primaryGreen
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Center(
-                  child: Text(
-                    'Scrap History',
-                    style: GoogleFonts.poppins(
-                      color: selectedHistoryType == 'scrap'
                           ? Colors.white
                           : Colors.black,
                       fontWeight: FontWeight.w500,
@@ -1391,14 +1226,9 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
   Widget _buildStats() {
     final stats = selectedHistoryType == 'subscription'
         ? subscriptionStats
-        : selectedHistoryType == 'special_day'
-            ? specialDayStats
-            : scrapStats;
-    final historyType = selectedHistoryType == 'subscription'
-        ? 'Subscription'
-        : selectedHistoryType == 'special_day'
-            ? 'Special Day'
-            : 'Scrap';
+        : specialDayStats;
+    final historyType =
+        selectedHistoryType == 'subscription' ? 'Subscription' : 'Special Day';
 
     return Container(
       padding: EdgeInsets.all(12.w),
@@ -1430,30 +1260,188 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildStatCard('Total Weight',
-                  '${stats['totalWeight'].toStringAsFixed(2)} kg', Icons.scale),
+                  '${stats["totalWeight"].toStringAsFixed(2)} kg', Icons.scale),
               _buildStatCard(
-                  selectedHistoryType == 'scrap'
-                      ? 'Total Earnings'
-                      : 'Carbon Footprint',
-                  selectedHistoryType == 'scrap'
-                      ? '₹${stats['totalEarnings'].toStringAsFixed(2)}'
-                      : '${stats['carbonFootprint'].toStringAsFixed(2)} kg CO₂e',
-                  selectedHistoryType == 'scrap'
-                      ? Icons.attach_money
-                      : Icons.eco),
+                  'Carbon Footprint',
+                  '${stats["carbonFootprint"].toStringAsFixed(2)} kg CO₂e',
+                  Icons.eco),
             ],
           ),
           SizedBox(height: 12.h),
+          // Full width earnings container for special day history
+          if (selectedHistoryType == 'special_day')
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(12.w),
+              margin: EdgeInsets.only(bottom: 12.h),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.attach_money, color: primaryGreen, size: 24.w),
+                  SizedBox(height: 8.h),
+                  Text(
+                    '₹${stats["totalEarnings"].toStringAsFixed(2)}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                      color: primaryGreen,
+                    ),
+                  ),
+                  Text(
+                    'Total Earnings',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14.sp,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Separate containers for successful and cancelled pickups
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildPickupStatCard('Successful', stats['successful'].toString(),
-                  Icons.check_circle, Colors.green),
-              _buildPickupStatCard('Cancelled', stats['cancelled'].toString(),
-                  Icons.cancel, Colors.red),
+              Expanded(
+                child: Container(
+                  padding: EdgeInsets.all(12.w),
+                  margin: EdgeInsets.only(right: 6.w),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 24.w),
+                      SizedBox(height: 8.h),
+                      Text(
+                        stats['successful'].toString(),
+                        style: GoogleFonts.poppins(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                      Text(
+                        'Successful',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12.sp,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  padding: EdgeInsets.all(12.w),
+                  margin: EdgeInsets.only(left: 6.w),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.cancel, color: Colors.red, size: 24.w),
+                      SizedBox(height: 8.h),
+                      Text(
+                        stats['cancelled'].toString(),
+                        style: GoogleFonts.poppins(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                      Text(
+                        'Cancelled',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12.sp,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSuccessfulWithCancelledStat(int successful, int cancelled) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        margin: EdgeInsets.symmetric(horizontal: 4.w),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            // Main successful pickups stat
+            Expanded(
+              flex: 3,
+              child: Column(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 24.w),
+                  SizedBox(height: 4.h),
+                  Text(
+                    successful.toString(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Successful',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.sp,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Vertical divider
+            Container(
+              height: 40.h,
+              width: 1,
+              color: Colors.grey[300],
+              margin: EdgeInsets.symmetric(horizontal: 4.w),
+            ),
+            // Smaller cancelled pickups stat
+            Expanded(
+              flex: 2,
+              child: Column(
+                children: [
+                  Icon(Icons.cancel, color: Colors.red, size: 16.w),
+                  SizedBox(height: 2.h),
+                  Text(
+                    cancelled.toString(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Cancelled',
+                    style: GoogleFonts.poppins(
+                      fontSize: 10.sp,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1575,18 +1563,14 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
           } else if (selectedHistoryType == 'special_day') {
             return data['special_day_id'] != null;
           } else {
-            // For scrap history, check both waste_type and special_day pickups with scrap type
-            return data['waste_type'] == 'scrap' ||
-                (data['special_day_id'] != null &&
-                    data['waste_type'] == 'scrap') ||
-                data['scrap_details_id'] != null;
+            return false; // Scrap history removed
           }
         }).toList();
 
         if (filteredDocs.isEmpty) {
           return Center(
             child: Text(
-              'No ${selectedHistoryType == "subscription" ? "subscription" : selectedHistoryType == 'special_day' ? 'special day' : 'scrap'} pickups found',
+              'No ${selectedHistoryType == "subscription" ? "subscription" : "special day"} pickups found',
               style: GoogleFonts.poppins(color: Colors.grey),
             ),
           );
@@ -1612,6 +1596,7 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
 
     List<Widget> wasteDetails = [];
     double totalWeight = 0.0;
+    double totalEarnings = 0.0;
 
     // For subscription pickups
     if (data['waste_weights'] != null) {
@@ -1625,6 +1610,12 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
               style: GoogleFonts.poppins(),
             ),
           );
+
+          // Calculate earnings if it's a scrap type
+          if (scrapPrices.containsKey(type)) {
+            double earnings = weight.toDouble() * scrapPrices[type]!;
+            totalEarnings += earnings;
+          }
         }
       });
     }
@@ -1671,6 +1662,11 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
               style: GoogleFonts.poppins(),
             ),
           );
+
+          // Calculate earnings for scrap items
+          double pricePerKg = scrapPrices[type] ?? 0.0;
+          double earnings = weight.toDouble() * pricePerKg;
+          totalEarnings += earnings;
         }
       });
     }
@@ -1689,10 +1685,14 @@ class _PickupHistoryPageState extends State<PickupHistoryPage> {
 
     // For scrap pickups, show total earnings
     if (data['total_scrap_price'] != null && data['total_scrap_price'] is num) {
-      final totalPrice = (data['total_scrap_price'] as num).toDouble();
+      totalEarnings = (data['total_scrap_price'] as num).toDouble();
+    }
+
+    // Add earnings information if available and only for special day history
+    if (totalEarnings > 0 && selectedHistoryType == 'special_day') {
       wasteDetails.add(
         Text(
-          'Total Earnings: ₹${totalPrice.toStringAsFixed(2)}',
+          'Total Earnings: ₹${totalEarnings.toStringAsFixed(2)}',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
             color: Colors.green[700],

@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutternew/Features/App/User_auth/util/smack_bar.dart';
+import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
 import 'package:flutternew/Features/App/notification/background_service.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -33,17 +32,11 @@ class _ResultPageState extends State<ResultPage> {
   bool isLoading = true;
   Map<String, dynamic>? subscriptionData;
   List<Map<String, dynamic>> specialDaysList = [];
-  List<Map<String, dynamic>> scrapDetailsList = []; // Added for scrap details
   int currentSpecialDayIndex = 0;
-  int currentScrapDetailsIndex = 0; // Added for scrap details
   bool isSubscriptionCancelled = false;
   bool isPickupMissed = false;
   Map<String, TextEditingController> weightControllers = {};
   final PageController _specialDaysPageController = PageController();
-  final PageController _scrapDetailsPageController = PageController(); // Added for scrap details
-  Map<String, double> householdWeights = {};
-  Map<String, double> commercialWeights = {};
-  Map<String, double> scrapWeights = {};
 
   @override
   void initState() {
@@ -52,13 +45,17 @@ class _ResultPageState extends State<ResultPage> {
     _fetchPickupDetails();
     // Start a timer to check for missed pickups
     _startMissedPickupTimer();
+
+    // Initialize ScreenUtil
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ScreenUtil.instance.init(context);
+    });
   }
 
   @override
   void dispose() {
     weightControllers.forEach((_, controller) => controller.dispose());
     _specialDaysPageController.dispose();
-    _scrapDetailsPageController.dispose(); // Added for scrap details
     _enableScanning(); // Re-enable scanning when leaving the page
     super.dispose();
   }
@@ -103,47 +100,24 @@ class _ResultPageState extends State<ResultPage> {
 
   Future<void> _addToMissedPickups() async {
     try {
-      // Check if missed pickup already exists for today
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      
-      final existingMissedPickups = await FirebaseFirestore.instance
-          .collection('missed_pickups')
-          .where('subscription_id', isEqualTo: subscriptionData!['id'])
-          .where('scheduled_date', isGreaterThanOrEqualTo: today)
-          .where('scheduled_date', isLessThan: today.add(Duration(days: 1)))
-          .get();
+      // Add to missed pickups collection
+      await FirebaseFirestore.instance.collection('missed_pickups').add({
+        'subscription_id': subscriptionData!['id'],
+        'customer_id': subscriptionData!['customer_id'],
+        'scheduled_date': DateTime.now(),
+        'scheduled_time': subscriptionData!['pickup_time'],
+        'subscription_type': subscriptionData!['subscription_type'],
+        'missed_at': DateTime.now(),
+        'status': 'missed'
+      });
 
-      if (existingMissedPickups.docs.isEmpty) {
-        // Add to missed pickups collection only if no entry exists
-        await FirebaseFirestore.instance.collection('missed_pickups').add({
-          'subscription_id': subscriptionData!['id'],
-          'customer_id': subscriptionData!['customer_id'],
-          'scheduled_date': today,
-          'scheduled_time': subscriptionData!['pickup_time'],
-          'subscription_type': subscriptionData!['subscription_type'],
-          'missed_at': DateTime.now(),
-          'status': 'missed'
-        });
+      // Update UI to show missed status
+      setState(() {
+        isPickupMissed = true;
+      });
 
-        // Create missed pickup notification
-        await FirebaseFirestore.instance.collection('notifications').add({
-          'user_id': subscriptionData!['customer_id'],
-          'message':
-          'Your scheduled pickup for today at ${subscriptionData!['pickup_time']} was missed. Please contact support for assistance.',
-          'created_at': Timestamp.now(),
-          'read': false,
-          'type': 'pickup_missed'
-        });
-
-        // Update UI to show missed status
-        setState(() {
-          isPickupMissed = true;
-        });
-
-        // Trigger background service check
-        BackgroundService.initialize();
-      }
+      // Trigger background service check
+      BackgroundService.initialize();
     } catch (e) {
       print('Error adding to missed pickups: $e');
     }
@@ -160,12 +134,6 @@ class _ResultPageState extends State<ResultPage> {
       // Fetch special day details
       final specialDaySnapshot = await FirebaseFirestore.instance
           .collection('special_day_details')
-          .where('status', isEqualTo: 'active')
-          .get();
-
-      // Fetch scrap details
-      final scrapDetailsSnapshot = await FirebaseFirestore.instance
-          .collection('scrap_details')
           .where('status', isEqualTo: 'active')
           .get();
 
@@ -247,29 +215,6 @@ class _ResultPageState extends State<ResultPage> {
         });
       }
 
-      // Process scrap details
-      if (scrapDetailsSnapshot.docs.isNotEmpty) {
-        List<Map<String, dynamic>> scrapDetails = [];
-
-        for (var doc in scrapDetailsSnapshot.docs) {
-          final data = doc.data();
-          data['id'] = doc.id;
-
-          // Initialize weight controllers for scrap types
-          if (data['scrap_types'] != null) {
-            (data['scrap_types'] as List<dynamic>).forEach((type) {
-              weightControllers['scrap_detail_$type'] = TextEditingController();
-            });
-          }
-
-          scrapDetails.add(data);
-        }
-
-        setState(() {
-          scrapDetailsList = scrapDetails;
-        });
-      }
-
       setState(() {
         isLoading = false;
       });
@@ -319,16 +264,6 @@ class _ResultPageState extends State<ResultPage> {
           'status': 'missed'
         });
 
-        // Create missed special day pickup notification
-        await FirebaseFirestore.instance.collection('notifications').add({
-          'user_id': specialDay['userId'],
-          'message':
-          'Your special ${specialDay['type']} pickup scheduled for ${specialDay['pickup_time']} was missed. Please contact support for assistance.',
-          'created_at': Timestamp.now(),
-          'read': false,
-          'type': 'special_pickup_missed'
-        });
-
         // Update special day status to inactive
         await FirebaseFirestore.instance
             .collection('special_day_details')
@@ -336,72 +271,13 @@ class _ResultPageState extends State<ResultPage> {
             .update({'status': 'inactive', 'missed_at': Timestamp.now()});
       }
     }
-
-    // Check scrap details pickups
-    for (var scrapDetail in scrapDetailsList) {
-      final pickupTime = scrapDetail['pickup_time'] as String;
-      if (!_isWithinPickupWindow(pickupTime)) {
-        // Add to missed pickups collection
-        await FirebaseFirestore.instance.collection('missed_pickups').add({
-          'scrap_details_id': scrapDetail['id'],
-          'customer_id': scrapDetail['userId'],
-          'scheduled_date': scrapDetail['pickup_date'],
-          'scheduled_time': scrapDetail['pickup_time'],
-          'type': 'scrap',
-          'waste_type': 'scrap',
-          'missed_at': Timestamp.now(),
-          'status': 'missed'
-        });
-
-        // Create missed scrap pickup notification
-        await FirebaseFirestore.instance.collection('notifications').add({
-          'user_id': scrapDetail['userId'],
-          'message':
-          'Your scrap pickup scheduled for ${scrapDetail['pickup_time']} was missed. Please contact support for assistance.',
-          'created_at': Timestamp.now(),
-          'read': false,
-          'type': 'scrap_pickup_missed'
-        });
-
-        // Update scrap details status to inactive
-        await FirebaseFirestore.instance
-            .collection('scrap_details')
-            .doc(scrapDetail['id'])
-            .update({'status': 'inactive', 'missed_at': Timestamp.now()});
-      }
-    }
-  }
-
-  double _calculateTotalScrapPrice(Map<String, dynamic> specialDayData) {
-    double totalPrice = 0.0;
-    if (specialDayData['scrap_types'] != null && specialDayData['scrap_prices'] != null) {
-      for (var type in specialDayData['scrap_types']) {
-        final controllerKey = 'scrap_$type';
-        if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
-          final weight = double.parse(weightControllers[controllerKey]!.text);
-          final price = specialDayData['scrap_prices'][type] ?? 0.0;
-          totalPrice += weight * price;
-        }
-      }
-    }
-    return totalPrice;
-  }
-
-  double _calculateTotalScrapWeight(Map<String, dynamic> specialDayData) {
-    double totalWeight = 0.0;
-    if (specialDayData['scrap_types'] != null) {
-      for (var type in specialDayData['scrap_types']) {
-        final controllerKey = 'scrap_$type';
-        if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
-          totalWeight += double.parse(weightControllers[controllerKey]!.text);
-        }
-      }
-    }
-    return totalWeight;
   }
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -409,12 +285,13 @@ class _ResultPageState extends State<ResultPage> {
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 18.sp,
           ),
         ),
         backgroundColor: primaryGreen,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Colors.white, size: 24.sp),
           onPressed: () async {
             // Re-enable scanning when going back
             final prefs = await SharedPreferences.getInstance();
@@ -430,20 +307,16 @@ class _ResultPageState extends State<ResultPage> {
           children: [
             _buildHeader(),
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (subscriptionData != null) _buildSubscriptionCard(),
                   if (specialDaysList.isNotEmpty) ...[
-                    SizedBox(height: 20),
+                    SizedBox(height: 20.h),
                     _buildSpecialDaysSection(),
                   ],
-                  if (scrapDetailsList.isNotEmpty) ...[
-                    SizedBox(height: 20),
-                    _buildScrapDetailsSection(),
-                  ],
-                  SizedBox(height: 20),
+                  SizedBox(height: 20.h),
                 ],
               ),
             ),
@@ -456,12 +329,12 @@ class _ResultPageState extends State<ResultPage> {
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
         color: primaryGreen,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(30.r),
+          bottomRight: Radius.circular(30.r),
         ),
       ),
       child: Column(
@@ -469,23 +342,23 @@ class _ResultPageState extends State<ResultPage> {
           Icon(
             Icons.qr_code_scanner,
             color: Colors.white,
-            size: 48,
+            size: 48.sp,
           ),
-          SizedBox(height: 10),
+          SizedBox(height: 10.h),
           Text(
             'QR Code Scanned Successfully',
             style: GoogleFonts.poppins(
-              fontSize: 20,
+              fontSize: 20.sp,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          SizedBox(height: 5),
+          SizedBox(height: 5.h),
           Text(
             'Verification Code: ${widget.scannedData}',
             style: GoogleFonts.poppins(
               color: Colors.white.withOpacity(0.9),
-              fontSize: 14,
+              fontSize: 14.sp,
             ),
           ),
         ],
@@ -510,7 +383,7 @@ class _ResultPageState extends State<ResultPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -520,311 +393,292 @@ class _ResultPageState extends State<ResultPage> {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Subscription Details',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: primaryGreen,
-              ),
-            ),
-          ),
-          Divider(height: 1),
-          ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.repeat, color: primaryGreen),
-            ),
-            title: Text(
-              '$subscriptionType Subscription',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: 8),
-                Text(
-                  'Today\'s Date: ${DateFormat('MMM d, yyyy').format(now)}',
-                  style: GoogleFonts.poppins(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  'Pickup Time: $pickupTime',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
-                ),
-                Text(
-                  'Valid: ${DateFormat('MMM d').format(startDate)} - ${DateFormat('MMM d').format(endDate)}',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  subscriptionData!['pickup_address'],
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                if (isSubscriptionCancelled)
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.cancel, color: Colors.red),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Today\'s pickup is cancelled. Service will resume tomorrow.',
-                            style: GoogleFonts.poppins(
-                              color: Colors.red,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else if (isPickupMissed)
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Today\'s pickup window has expired. Pickup was scheduled for $pickupTime.',
-                            style: GoogleFonts.poppins(
-                              color: Colors.orange[800],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else ...[
-                    if (!isSubscriptionCancelled && !isPickupMissed) ...[
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (householdWasteTypes.isNotEmpty) ...[
-                              Text(
-                                'Household Waste',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: primaryGreen,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              ...householdWasteTypes.map((type) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: TextField(
-                                  controller: weightControllers[type],
-                                  keyboardType:
-                                  TextInputType.numberWithOptions(
-                                      decimal: true),
-                                  decoration: InputDecoration(
-                                    labelText: 'Enter $type weight (kg)',
-                                    hintText: 'e.g. 5.5',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    prefixIcon: Icon(Icons.scale,
-                                        color: primaryGreen),
-                                  ),
-                                  readOnly: true, // Make field read-only
-                                  enabled: false, // Disable the field
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.black87,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              )),
-                            ],
-                            if (commercialWasteTypes.isNotEmpty) ...[
-                              SizedBox(height: 16),
-                              Text(
-                                'Commercial Waste',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: primaryGreen,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              ...commercialWasteTypes.map((type) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: TextField(
-                                  controller: weightControllers[type],
-                                  keyboardType:
-                                  TextInputType.numberWithOptions(
-                                      decimal: true),
-                                  decoration: InputDecoration(
-                                    labelText: 'Enter $type weight (kg)',
-                                    hintText: 'e.g. 5.5',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    prefixIcon: Icon(Icons.scale,
-                                        color: primaryGreen),
-                                  ),
-                                  readOnly: true, // Make field read-only
-                                  enabled: false, // Disable the field
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.black87,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              )),
-                            ],
-                            SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () async {
-                                  Map<String, double> weights = {};
-                                  // Collect weights without validation
-                                  weightControllers.forEach((type, controller) {
-                                    if (controller.text.isNotEmpty) {
-                                      weights[type] =
-                                          double.parse(controller.text);
-                                    }
-                                  });
-
-                                  try {
-                                    // Add to successful pickups collection
-                                    await FirebaseFirestore.instance
-                                        .collection('successful_pickups')
-                                        .add({
-                                      'subscription_id': subscriptionData!['id'],
-                                      'customer_id':
-                                      subscriptionData!['customer_id'],
-                                      'pickup_date': Timestamp.now(),
-                                      'scheduled_time':
-                                      subscriptionData!['pickup_time'],
-                                      'subscription_type':
-                                      subscriptionData!['subscription_type'],
-                                      'waste_weights': weights,
-                                      'household_waste_types':
-                                      householdWasteTypes,
-                                      'commercial_waste_types':
-                                      commercialWasteTypes,
-                                      'status': 'completed'
-                                    });
-
-                                    // Create successful pickup notification
-                                    await FirebaseFirestore.instance
-                                        .collection('notifications')
-                                        .add({
-                                      'user_id': subscriptionData!['customer_id'],
-                                      'message':
-                                      'Your waste pickup has been completed successfully. Thank you for using our service!',
-                                      'created_at': Timestamp.now(),
-                                      'read': false,
-                                      'type': 'pickup_completed'
-                                    });
-
-                                    // Add to upcoming pickups collection for next pickup
-                                    final nextPickupDate =
-                                    DateTime.now().add(Duration(days: 1));
-                                    await FirebaseFirestore.instance
-                                        .collection('upcoming_pickups')
-                                        .add({
-                                      'subscription_id': subscriptionData!['id'],
-                                      'customer_id':
-                                      subscriptionData!['customer_id'],
-                                      'pickup_date':
-                                      Timestamp.fromDate(nextPickupDate),
-                                      'scheduled_time':
-                                      subscriptionData!['pickup_time'],
-                                      'subscription_type':
-                                      subscriptionData!['subscription_type'],
-                                      'pickup_address':
-                                      subscriptionData!['pickup_address'],
-                                      'household_waste_types':
-                                      householdWasteTypes,
-                                      'commercial_waste_types':
-                                      commercialWasteTypes,
-                                      'status': 'pending',
-                                      'type': 'subscription',
-                                      'created_at': Timestamp.now()
-                                    });
-
-                                    // Pickup confirmed successfully
-
-                                    if (mounted) {
-                                      CustomSnackbar.showSuccess(
-                                        context: context,
-                                        message: 'Pickup confirmed successfully!',
-                                      );
-                                    }
-
-                                    // Re-enable scanning
-                                    await _enableScanning();
-                                    Navigator.pop(context);
-                                  } catch (e) {
-                                    print('Error confirming pickup: $e');
-                                    if (mounted) {
-                                      CustomSnackbar.showError(
-                                        context: context,
-                                        message:
-                                        'Failed to confirm pickup. Please try again.',
-                                      );
-                                    }
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primaryGreen,
-                                  padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Confirm Subscription Pickup',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-              ],
-            ),
-          ),
-        ],
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+      Padding(
+      padding: EdgeInsets.all(16.w),
+      child: Text(
+        'Subscription Details',
+        style: GoogleFonts.poppins(
+          fontSize: 18.sp,
+          fontWeight: FontWeight.bold,
+          color: primaryGreen,
+        ),
       ),
+    ),
+    Divider(height: 1),
+    ListTile(
+    leading: Container(
+    padding: EdgeInsets.all(12.w),
+    decoration: BoxDecoration(
+    color: Colors.green.shade50,
+    borderRadius: BorderRadius.circular(12.r),
+    ),
+    child: Icon(Icons.repeat, color: primaryGreen, size: 24.sp),
+    ),
+    title: Text(
+    '$subscriptionType Subscription',
+    style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16.sp),
+    ),
+    subtitle: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+    SizedBox(height: 8.h),
+    Text(
+    'Today\'s Date: ${DateFormat('MMM d, yyyy').format(now)}',
+    style: GoogleFonts.poppins(
+    color: Colors.grey[600],
+    fontWeight: FontWeight.w500,
+    fontSize: 14.sp,
+    ),
+    ),
+    Text(
+    'Pickup Time: $pickupTime',
+    style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 14.sp),
+    ),
+    Text(
+    'Valid: ${DateFormat('MMM d').format(startDate)} - ${DateFormat('MMM d').format(endDate)}',
+    style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 14.sp),
+    ),
+    SizedBox(height: 4.h),
+    Text(
+    subscriptionData!['pickup_address'],
+    style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 14.sp),
+    ),
+    ],
+    ),
+    ),
+    Padding(
+    padding: EdgeInsets.all(16.w),
+    child: Column(
+    children: [
+    if (isSubscriptionCancelled)
+    Container(
+    padding: EdgeInsets.all(12.w),
+    decoration: BoxDecoration(
+    color: Colors.red.shade50,
+    borderRadius: BorderRadius.circular(8.r),
+    ),
+    child: Row(
+    children: [
+    Icon(Icons.cancel, color: Colors.red, size: 24.sp),
+    SizedBox(width: 8.w),
+    Expanded(
+    child: Text(
+    'Today\'s pickup is cancelled. Service will resume tomorrow.',
+    style: GoogleFonts.poppins(
+    color: Colors.red,
+    fontWeight: FontWeight.w500,
+    fontSize: 14.sp,
+    ),
+    ),
+    ),
+    ],
+    ),
+    )
+    else if (isPickupMissed)
+    Container(
+    padding: EdgeInsets.all(12.w),
+    decoration: BoxDecoration(
+    color: Colors.orange.shade50,
+    borderRadius: BorderRadius.circular(8.r),
+    ),
+    child: Row(
+    children: [
+    Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24.sp),
+    SizedBox(width: 8.w),
+    Expanded(
+    child: Text(
+    'Today\'s pickup window has expired. Pickup was scheduled for $pickupTime.',
+    style: GoogleFonts.poppins(
+    color: Colors.orange[800],
+    fontWeight: FontWeight.w500,
+    fontSize: 14.sp,
+    ),
+    ),
+    ),
+    ],
+    ),
+    )
+    else ...[
+    if (!isSubscriptionCancelled && !isPickupMissed) ...[
+    Padding(
+    padding: EdgeInsets.all(16.w),
+    child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+    if (householdWasteTypes.isNotEmpty) ...[
+    Text(
+    'Household Waste',
+    style: GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeight.w600,
+    color: primaryGreen,
+    ),
+    ),
+    SizedBox(height: 8.h),
+    ...householdWasteTypes.map((type) => Padding(
+    padding: EdgeInsets.only(bottom: 12.h),
+    child: TextField(
+    controller: weightControllers[type],
+    keyboardType:
+    TextInputType.numberWithOptions(
+    decimal: true),
+    decoration: InputDecoration(
+    labelText: 'Enter $type weight (kg)',
+    hintText: 'e.g. 5.5',
+    border: OutlineInputBorder(
+    gapPadding: 5.5,
+    borderRadius: BorderRadius.circular(10.r),
+    ),
+    prefixIcon: Icon(Icons.scale,
+    color: primaryGreen, size: 20.sp),
+    ),
+    ),
+    )),
+    ],
+    if (commercialWasteTypes.isNotEmpty) ...[
+    SizedBox(height: 16.h),
+    Text(
+    'Commercial Waste',
+    style: GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeight.w600,
+    color: primaryGreen,
+    ),
+    ),
+    SizedBox(height: 8.h),
+    ...commercialWasteTypes.map((type) => Padding(
+    padding: EdgeInsets.only(bottom: 12.h),
+    child: TextField(
+    controller: weightControllers[type],
+    keyboardType:
+    TextInputType.numberWithOptions(
+    decimal: true),
+    decoration: InputDecoration(
+    labelText: 'Enter $type weight (kg)',
+    hintText: 'e.g. 5.5',
+    border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(10.r),
+    ),
+    prefixIcon: Icon(Icons.scale,
+    color: primaryGreen, size: 20.sp),
+    ),
+    ),
+    )),
+    ],
+    SizedBox(height: 16.h),
+    SizedBox(
+    width: double.infinity,
+    child: ElevatedButton(
+    onPressed: () async {
+    Map<String, double> weights = {};
+    // Collect weights without validation
+    weightControllers.forEach((type, controller) {
+    if (controller.text.isNotEmpty) {
+    weights[type] =
+    double.parse(controller.text);
+    }
+    });
+
+    try {
+    // Add to successful pickups collection
+    await FirebaseFirestore.instance
+        .collection('successful_pickups')
+        .add({
+    'subscription_id': subscriptionData!['id'],
+    'customer_id':
+    subscriptionData!['customer_id'],
+    'pickup_date': Timestamp.now(),
+    'scheduled_time':
+    subscriptionData!['pickup_time'],
+    'subscription_type':
+    subscriptionData!['subscription_type'],
+    'waste_weights': weights,
+    'household_waste_types':
+    householdWasteTypes,
+    'commercial_waste_types':
+    commercialWasteTypes,
+    'status': 'completed'
+    });
+
+    // Add to upcoming pickups collection for next pickup
+    final nextPickupDate =
+    DateTime.now().add(Duration(days: 1));
+    await FirebaseFirestore.instance
+        .collection('upcoming_pickups')
+        .add({
+    'subscription_id': subscriptionData!['id'],
+    'customer_id':
+    subscriptionData!['customer_id'],
+    'pickup_date':
+    Timestamp.fromDate(nextPickupDate),
+    'scheduled_time':
+    subscriptionData!['pickup_time'],
+    'subscription_type':
+    subscriptionData!['subscription_type'],
+    'pickup_address':
+    subscriptionData!['pickup_address'],
+    'household_waste_types':
+    householdWasteTypes,
+    'commercial_waste_types':
+    commercialWasteTypes,
+    'status': 'pending',
+    'type': 'subscription',
+    'created_at': Timestamp.now()
+    });
+
+    // Pickup confirmed successfully
+
+    if (mounted) {
+    CustomSnackbar.showSuccess(
+    context: context,
+    message: 'Pickup confirmed successfully!',
+    );
+    }
+
+    // Re-enable scanning
+    await _enableScanning();
+    Navigator.pop(context);
+    } catch (e) {
+    print('Error confirming pickup: $e');
+    if (mounted) {
+    CustomSnackbar.showError(
+    context: context,
+    message:
+    'Failed to confirm pickup. Please try again.',
+    );
+    }
+    }
+    },
+    style: ElevatedButton.styleFrom(
+    backgroundColor: primaryGreen,
+    padding:
+    EdgeInsets.symmetric(vertical: 12.h),
+    shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(10.r),
+    ),
+    ),
+    child: Text(
+    'Confirm Subscription Pickup',
+    style: GoogleFonts.poppins(
+    fontWeight: FontWeight.w600,
+    color: Colors.white,
+    fontSize: 16.sp,
+    ),
+    ),
+    ),
+    ),
+    ],
+    ),
+    ),
+    ],
+    ],
+    ],
+    ),
+    ),
+    ],
+    ),
     );
   }
 
@@ -840,7 +694,7 @@ class _ResultPageState extends State<ResultPage> {
             Text(
               'Special Day Pickups',
               style: GoogleFonts.poppins(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
                 color: primaryGreen,
               ),
@@ -853,18 +707,19 @@ class _ResultPageState extends State<ResultPage> {
                     style: GoogleFonts.poppins(
                       color: Colors.grey[600],
                       fontWeight: FontWeight.w500,
+                      fontSize: 14.sp,
                     ),
                   ),
-                  SizedBox(width: 8),
+                  SizedBox(width: 8.w),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(20.r),
                     ),
                     child: Row(
                       children: [
                         IconButton(
-                          icon: Icon(Icons.arrow_back_ios, size: 16),
+                          icon: Icon(Icons.arrow_back_ios, size: 16.sp),
                           onPressed: currentSpecialDayIndex > 0
                               ? () {
                             _specialDaysPageController.previousPage(
@@ -878,7 +733,7 @@ class _ResultPageState extends State<ResultPage> {
                               : Colors.grey[400],
                         ),
                         IconButton(
-                          icon: Icon(Icons.arrow_forward_ios, size: 16),
+                          icon: Icon(Icons.arrow_forward_ios, size: 16.sp),
                           onPressed: currentSpecialDayIndex <
                               specialDaysList.length - 1
                               ? () {
@@ -900,9 +755,9 @@ class _ResultPageState extends State<ResultPage> {
               ),
           ],
         ),
-        SizedBox(height: 10),
+        SizedBox(height: 10.h),
         Container(
-          height: 450, // Fixed height for the PageView
+          height: 450.h, // Fixed height for the PageView
           child: PageView.builder(
             controller: _specialDaysPageController,
             itemCount: specialDaysList.length,
@@ -920,98 +775,6 @@ class _ResultPageState extends State<ResultPage> {
     );
   }
 
-  Widget _buildScrapDetailsSection() {
-    if (scrapDetailsList.isEmpty) return SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Scrap Pickups',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: primaryGreen,
-              ),
-            ),
-            if (scrapDetailsList.length > 1)
-              Row(
-                children: [
-                  Text(
-                    '${currentScrapDetailsIndex + 1}/${scrapDetailsList.length}',
-                    style: GoogleFonts.poppins(
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.arrow_back_ios, size: 16),
-                          onPressed: currentScrapDetailsIndex > 0
-                              ? () {
-                            _scrapDetailsPageController.previousPage(
-                              duration: Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                              : null,
-                          color: currentScrapDetailsIndex > 0
-                              ? primaryGreen
-                              : Colors.grey[400],
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.arrow_forward_ios, size: 16),
-                          onPressed: currentScrapDetailsIndex <
-                              scrapDetailsList.length - 1
-                              ? () {
-                            _scrapDetailsPageController.nextPage(
-                              duration: Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                              : null,
-                          color: currentScrapDetailsIndex <
-                              scrapDetailsList.length - 1
-                              ? primaryGreen
-                              : Colors.grey[400],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-        SizedBox(height: 10),
-        Container(
-          height: 450, // Fixed height for the PageView
-          child: PageView.builder(
-            controller: _scrapDetailsPageController,
-            itemCount: scrapDetailsList.length,
-            onPageChanged: (index) {
-              setState(() {
-                currentScrapDetailsIndex = index;
-              });
-            },
-            itemBuilder: (context, index) {
-              return _buildScrapDetailCard(scrapDetailsList[index]);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildSpecialDayCard(Map<String, dynamic> specialDayData) {
     final pickupDate = (specialDayData['pickup_date'] as Timestamp).toDate();
     final pickupTime = specialDayData['pickup_time'] as String;
@@ -1020,10 +783,59 @@ class _ResultPageState extends State<ResultPage> {
     // Check if we're within the pickup window
     final isWithinPickupWindow = _isWithinPickupWindow(pickupTime);
 
+    // Calculate total scrap weight and price for scrap pickups
+    double totalScrapWeight = 0.0;
+    double totalScrapPrice = 0.0;
+
+    if (type == 'scrap' && specialDayData['scrap_weights'] != null) {
+      final scrapWeights = specialDayData['scrap_weights'] as Map<String, dynamic>;
+
+      // Use stored total values if available
+      if (specialDayData['total_scrap_weight'] != null) {
+        totalScrapWeight = (specialDayData['total_scrap_weight'] as num).toDouble();
+      } else {
+        // Calculate from individual weights
+        scrapWeights.forEach((type, weight) {
+          if (weight is num) {
+            totalScrapWeight += weight.toDouble();
+          }
+        });
+      }
+
+      if (specialDayData['total_scrap_price'] != null) {
+        totalScrapPrice = (specialDayData['total_scrap_price'] as num).toDouble();
+      } else {
+        // Calculate from individual weights and prices
+        scrapWeights.forEach((type, weight) {
+          if (weight is num) {
+            double pricePerKg = 0.0;
+            switch (type) {
+              case 'News Paper':
+                pricePerKg = 15;
+                break;
+              case 'Office Paper(A3/A4)':
+                pricePerKg = 15;
+                break;
+              case 'Books':
+                pricePerKg = 12;
+                break;
+              case 'Cardboard':
+                pricePerKg = 8;
+                break;
+              case 'Plastic':
+                pricePerKg = 10;
+                break;
+            }
+            totalScrapPrice += weight.toDouble() * pricePerKg;
+          }
+        });
+      }
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15.r),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -1036,11 +848,11 @@ class _ResultPageState extends State<ResultPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16.w),
             child: Text(
               'Special Day Pickup',
               style: GoogleFonts.poppins(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
                 color: primaryGreen,
               ),
@@ -1049,43 +861,44 @@ class _ResultPageState extends State<ResultPage> {
           Divider(height: 1),
           ListTile(
             leading: Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12.r),
               ),
               child: Icon(
                 type == 'waste' ? Icons.delete : Icons.recycling,
                 color: primaryGreen,
+                size: 24.sp,
               ),
             ),
             title: Text(
               'Special ${type.capitalize()} Pickup',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16.sp),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 8),
+                SizedBox(height: 8.h),
                 Text(
                   'Date: ${DateFormat('MMM d, yyyy').format(pickupDate)}',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 14.sp),
                 ),
                 Text(
                   'Time: $pickupTime',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 14.sp),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 4.h),
                 Text(
                   specialDayData['pickup_address'],
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 14.sp),
                 ),
               ],
             ),
           ),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1097,12 +910,12 @@ class _ResultPageState extends State<ResultPage> {
                       Text(
                         'Household Waste',
                         style: GoogleFonts.poppins(
-                          fontSize: 16,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                           color: primaryGreen,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      SizedBox(height: 8.h),
                       ...(specialDayData['household_waste'] as List)
                           .map((type) {
                         final controllerKey = 'household_$type';
@@ -1121,25 +934,19 @@ class _ResultPageState extends State<ResultPage> {
                         }
 
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                          padding: EdgeInsets.only(bottom: 12.h),
                           child: TextField(
                             controller: weightControllers[controllerKey],
                             keyboardType:
                             TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
-                              labelText: '$type weight (kg)',
+                              labelText: 'Enter $type weight (kg)',
                               hintText: 'e.g. 5.5',
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(10.r),
                               ),
                               prefixIcon:
-                              Icon(Icons.scale, color: primaryGreen),
-                            ),
-                            readOnly: true, // Make field read-only
-                            enabled: false, // Disable the field
-                            style: GoogleFonts.poppins(
-                              color: Colors.black87,
-                              fontWeight: FontWeight.w500,
+                              Icon(Icons.scale, color: primaryGreen, size: 20.sp),
                             ),
                           ),
                         );
@@ -1151,16 +958,16 @@ class _ResultPageState extends State<ResultPage> {
                         (specialDayData['commercial_waste'] as List) != null &&
                         (specialDayData['commercial_waste'] as List)
                             .isNotEmpty) ...[
-                      SizedBox(height: 16),
+                      SizedBox(height: 16.h),
                       Text(
                         'Commercial Waste',
                         style: GoogleFonts.poppins(
-                          fontSize: 16,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                           color: primaryGreen,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      SizedBox(height: 8.h),
                       ...(specialDayData['commercial_waste'] as List)
                           .map((type) {
                         final controllerKey = 'commercial_$type';
@@ -1179,25 +986,19 @@ class _ResultPageState extends State<ResultPage> {
                         }
 
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                          padding: EdgeInsets.only(bottom: 12.h),
                           child: TextField(
                             controller: weightControllers[controllerKey],
                             keyboardType:
                             TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
-                              labelText: '$type weight (kg)',
+                              labelText: 'Enter $type weight (kg)',
                               hintText: 'e.g. 5.5',
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(10.r),
                               ),
                               prefixIcon:
-                              Icon(Icons.scale, color: primaryGreen),
-                            ),
-                            readOnly: true, // Make field read-only
-                            enabled: false, // Disable the field
-                            style: GoogleFonts.poppins(
-                              color: Colors.black87,
-                              fontWeight: FontWeight.w500,
+                              Icon(Icons.scale, color: primaryGreen, size: 20.sp),
                             ),
                           ),
                         );
@@ -1210,17 +1011,16 @@ class _ResultPageState extends State<ResultPage> {
                       Text(
                         'Scrap Items',
                         style: GoogleFonts.poppins(
-                          fontSize: 16,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                           color: primaryGreen,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      SizedBox(height: 8.h),
                       ...(specialDayData['scrap_types'] as List).map((type) {
                         final controllerKey = 'scrap_$type';
                         final weight =
                             specialDayData['scrap_weights']?[type] ?? 0.0;
-                        final price = specialDayData['scrap_prices']?[type] ?? 0.0;
 
                         // Initialize controller if it doesn't exist
                         weightControllers.putIfAbsent(
@@ -1233,25 +1033,19 @@ class _ResultPageState extends State<ResultPage> {
                         }
 
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                          padding: EdgeInsets.only(bottom: 12.h),
                           child: TextField(
                             controller: weightControllers[controllerKey],
                             keyboardType:
                             TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
-                              labelText: '$type weight (kg)',
+                              labelText: 'Enter $type weight (kg)',
                               hintText: 'e.g. 5.5',
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(10.r),
                               ),
                               prefixIcon:
-                              Icon(Icons.scale, color: primaryGreen),
-                            ),
-                            readOnly: true, // Make field read-only
-                            enabled: false, // Disable the field
-                            style: GoogleFonts.poppins(
-                              color: Colors.black87,
-                              fontWeight: FontWeight.w500,
+                              Icon(Icons.scale, color: primaryGreen, size: 20.sp),
                             ),
                           ),
                         );
@@ -1259,50 +1053,180 @@ class _ResultPageState extends State<ResultPage> {
                     ],
                   ],
 
-                  SizedBox(height: 16),
+                  SizedBox(height: 16.h),
                   // Only show confirm button if within pickup window
                   if (isWithinPickupWindow)
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () async {
-                          await _confirmSpecialDayPickup(specialDayData);
+                          // Collect weights for the current special day
+                          Map<String, double> householdWeights = {};
+                          Map<String, double> commercialWeights = {};
+                          Map<String, double> scrapWeights = {};
+                          double totalScrapWeight = 0.0;
+                          double totalScrapPrice = 0.0;
+
+                          // Process household waste weights
+                          if (specialDayData['household_waste'] != null) {
+                            for (var type
+                            in specialDayData['household_waste']) {
+                              final controllerKey = 'household_$type';
+                              if (weightControllers[controllerKey]
+                                  ?.text
+                                  .isNotEmpty ??
+                                  false) {
+                                householdWeights[type] = double.parse(
+                                    weightControllers[controllerKey]!.text);
+                              }
+                            }
+                          }
+
+                          // Process commercial waste weights
+                          if (specialDayData['commercial_waste'] != null) {
+                            for (var type
+                            in specialDayData['commercial_waste']) {
+                              final controllerKey = 'commercial_$type';
+                              if (weightControllers[controllerKey]
+                                  ?.text
+                                  .isNotEmpty ??
+                                  false) {
+                                commercialWeights[type] = double.parse(
+                                    weightControllers[controllerKey]!.text);
+                              }
+                            }
+                          }
+
+                          // Process scrap weights and calculate total price
+                          if (specialDayData['scrap_types'] != null) {
+                            for (var type in specialDayData['scrap_types']) {
+                              final controllerKey = 'scrap_$type';
+                              if (weightControllers[controllerKey]
+                                  ?.text
+                                  .isNotEmpty ??
+                                  false) {
+                                double weight = double.parse(
+                                    weightControllers[controllerKey]!.text);
+                                scrapWeights[type] = weight;
+                                totalScrapWeight += weight;
+
+                                // Calculate price based on scrap type
+                                double pricePerKg = 0.0;
+                                switch (type) {
+                                  case 'News Paper':
+                                    pricePerKg = 15;
+                                    break;
+                                  case 'Office Paper(A3/A4)':
+                                    pricePerKg = 15;
+                                    break;
+                                  case 'Books':
+                                    pricePerKg = 12;
+                                    break;
+                                  case 'Cardboard':
+                                    pricePerKg = 8;
+                                    break;
+                                  case 'Plastic':
+                                    pricePerKg = 10;
+                                    break;
+                                }
+                                totalScrapPrice += weight * pricePerKg;
+                              }
+                            }
+                          }
+
+                          try {
+                            // Add to successful pickups collection
+                            await FirebaseFirestore.instance
+                                .collection('successful_pickups')
+                                .add({
+                              'special_day_id': specialDayData['id'],
+                              'customer_id': specialDayData['userId'],
+                              'pickup_date': Timestamp.now(),
+                              'scheduled_time': specialDayData['pickup_time'],
+                              'type': 'special_day',
+                              'waste_type': specialDayData['type'],
+                              'household_waste':
+                              specialDayData['household_waste'],
+                              'commercial_waste':
+                              specialDayData['commercial_waste'],
+                              'scrap_types': specialDayData['scrap_types'],
+                              'household_waste_weights': householdWeights,
+                              'commercial_waste_weights': commercialWeights,
+                              'scrap_weights': scrapWeights,
+                              'total_scrap_weight': type == 'scrap' ? totalScrapWeight : null,
+                              'total_scrap_price': type == 'scrap' ? totalScrapPrice : null,
+                              'status': 'completed',
+                              'completed_at': Timestamp.now()
+                            });
+
+                            // Update special day status to inactive
+                            await FirebaseFirestore.instance
+                                .collection('special_day_details')
+                                .doc(specialDayData['id'])
+                                .update({
+                              'status': 'inactive',
+                              'completed_at': Timestamp.now()
+                            });
+
+                            if (mounted) {
+                              CustomSnackbar.showSuccess(
+                                context: context,
+                                message:
+                                'Special day pickup confirmed successfully!',
+                              );
+                            }
+
+                            // Re-enable scanning
+                            await _enableScanning();
+                            Navigator.pop(context);
+                          } catch (e) {
+                            print('Error confirming special day pickup: $e');
+                            if (mounted) {
+                              CustomSnackbar.showError(
+                                context: context,
+                                message:
+                                'Failed to confirm pickup. Please try again.',
+                              );
+                            }
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryGreen,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(10.r),
                           ),
                         ),
                         child: Text(
-                          specialDayData['type'] == 'scrap'
-                              ? 'Confirm Scrap Pickup - ₹${_calculateTotalScrapPrice(specialDayData).toStringAsFixed(2)}'
+                          type == 'scrap'
+                              ? 'Confirm Scrap Pickup - ₹${totalScrapPrice.toStringAsFixed(2)}'
                               : 'Confirm Special Day Pickup',
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
+                            fontSize: 16.sp,
                           ),
                         ),
                       ),
                     )
                   else
                     Container(
-                      padding: EdgeInsets.all(12),
+                      padding: EdgeInsets.all(12.w),
                       decoration: BoxDecoration(
                         color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.access_time, color: Colors.orange),
-                          SizedBox(width: 8),
+                          Icon(Icons.access_time, color: Colors.orange, size: 24.sp),
+                          SizedBox(width: 8.w),
                           Expanded(
                             child: Text(
                               'Confirm button will be available at the scheduled pickup time: $pickupTime',
                               style: GoogleFonts.poppins(
                                 color: Colors.orange[800],
                                 fontWeight: FontWeight.w500,
+                                fontSize: 14.sp,
                               ),
                             ),
                           ),
@@ -1316,397 +1240,6 @@ class _ResultPageState extends State<ResultPage> {
         ],
       ),
     );
-  }
-
-  Widget _buildScrapDetailCard(Map<String, dynamic> scrapDetailData) {
-    final pickupDate = (scrapDetailData['pickup_date'] as Timestamp).toDate();
-    final pickupTime = scrapDetailData['pickup_time'] as String;
-
-    // Check if we're within the pickup window
-    final isWithinPickupWindow = _isWithinPickupWindow(pickupTime);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Scrap Pickup',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: primaryGreen,
-              ),
-            ),
-          ),
-          Divider(height: 1),
-          ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.recycling,
-                color: primaryGreen,
-              ),
-            ),
-            title: Text(
-              'Scrap Pickup',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: 8),
-                Text(
-                  'Date: ${DateFormat('MMM d, yyyy').format(pickupDate)}',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
-                ),
-                Text(
-                  'Time: $pickupTime',
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  scrapDetailData['pickup_address'],
-                  style: GoogleFonts.poppins(color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Scrap section
-                  if (scrapDetailData['scrap_types'] != null &&
-                      (scrapDetailData['scrap_types'] as List).isNotEmpty) ...[
-                    Text(
-                      'Scrap Items',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: primaryGreen,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    ...(scrapDetailData['scrap_types'] as List).map((type) {
-                      final controllerKey = 'scrap_detail_$type';
-                      final weight =
-                          scrapDetailData['scrap_weights']?[type] ?? 0.0;
-
-                      // Get price from scrap_prices if available
-                      double price = 0.0;
-                      if (scrapDetailData['scrap_prices'] != null &&
-                          scrapDetailData['scrap_prices'][type] != null) {
-                        price = scrapDetailData['scrap_prices'][type];
-                      } else {
-                        // Default prices if not available
-                        switch (type) {
-                          case 'News Paper':
-                            price = 15;
-                            break;
-                          case 'Office Paper(A3/A4)':
-                            price = 15;
-                            break;
-                          case 'Books':
-                            price = 12;
-                            break;
-                          case 'Cardboard':
-                            price = 8;
-                            break;
-                          case 'Plastic':
-                            price = 10;
-                            break;
-                        }
-                      }
-
-                      // Initialize controller if it doesn't exist
-                      weightControllers.putIfAbsent(
-                          controllerKey, () => TextEditingController());
-
-                      // Set text value if weight is greater than 0
-                      if (weight > 0) {
-                        weightControllers[controllerKey]?.text =
-                            weight.toString();
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: TextField(
-                          controller: weightControllers[controllerKey],
-                          keyboardType:
-                          TextInputType.numberWithOptions(decimal: true),
-                          decoration: InputDecoration(
-                            labelText: '$type weight (kg) - ₹$price/kg',
-                            hintText: 'e.g. 5.5',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            prefixIcon:
-                            Icon(Icons.scale, color: primaryGreen),
-                          ),
-                          readOnly: true, // Make field read-only
-                          enabled: false, // Disable the field
-                          style: GoogleFonts.poppins(
-                            color: Colors.black87,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ],
-
-                  SizedBox(height: 16),
-                  // Only show confirm button if within pickup window
-                  if (isWithinPickupWindow)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          await _confirmScrapPickup(scrapDetailData);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryGreen,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          'Confirm Scrap Pickup - ₹${scrapDetailData['total_scrap_price']?.toStringAsFixed(2) ?? "0.00"}',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.access_time, color: Colors.orange),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Confirm button will be available at the scheduled pickup time: $pickupTime',
-                              style: GoogleFonts.poppins(
-                                color: Colors.orange[800],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmSpecialDayPickup(
-      Map<String, dynamic> specialDayData) async {
-    try {
-      // Calculate total scrap price and weight for scrap pickups
-      double totalScrapPrice = 0.0;
-      double totalScrapWeight = 0.0;
-
-      if (specialDayData['type'] == 'scrap') {
-        totalScrapPrice = _calculateTotalScrapPrice(specialDayData);
-        totalScrapWeight = _calculateTotalScrapWeight(specialDayData);
-      }
-
-      // Process household waste weights
-      if (specialDayData['household_waste'] != null) {
-        for (var type in specialDayData['household_waste']) {
-          final controllerKey = 'household_$type';
-          if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
-            householdWeights[type] = double.parse(
-                weightControllers[controllerKey]!.text);
-          }
-        }
-      }
-
-      // Process commercial waste weights
-      if (specialDayData['commercial_waste'] != null) {
-        for (var type in specialDayData['commercial_waste']) {
-          final controllerKey = 'commercial_$type';
-          if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
-            commercialWeights[type] = double.parse(
-                weightControllers[controllerKey]!.text);
-          }
-        }
-      }
-
-      // Process scrap weights
-      if (specialDayData['scrap_types'] != null) {
-        for (var type in specialDayData['scrap_types']) {
-          final controllerKey = 'scrap_$type';
-          if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
-            scrapWeights[type] = double.parse(
-                weightControllers[controllerKey]!.text);
-          }
-        }
-      }
-
-      // Add to successful pickups collection
-      await FirebaseFirestore.instance.collection('successful_pickups').add({
-        'special_day_id': specialDayData['id'],
-        'customer_id': specialDayData['userId'],
-        'pickup_date': Timestamp.now(),
-        'scheduled_time': specialDayData['pickup_time'],
-        'type': 'special_day',
-        'waste_type': specialDayData['type'],
-        'household_waste': specialDayData['household_waste'],
-        'commercial_waste': specialDayData['commercial_waste'],
-        'scrap_types': specialDayData['scrap_types'],
-        'household_waste_weights': householdWeights,
-        'commercial_waste_weights': commercialWeights,
-        'scrap_weights': scrapWeights,
-        'total_scrap_weight': specialDayData['type'] == 'scrap' ? totalScrapWeight : 0,
-        'total_scrap_price': specialDayData['type'] == 'scrap' ? totalScrapPrice : 0,
-        'status': 'completed',
-        'completed_at': Timestamp.now()
-      });
-
-      // Create special day pickup notification
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'user_id': specialDayData['userId'],
-        'message': specialDayData['type'] == 'scrap'
-            ? 'Your scrap pickup has been completed successfully. Cash received from pickup man.'
-            : 'Your special ${specialDayData['type']} pickup has been completed successfully. Thank you for using our service!',
-        'created_at': Timestamp.now(),
-        'read': false,
-        'type': 'special_pickup_completed'
-      });
-
-      // Update special day status to inactive
-      await FirebaseFirestore.instance
-          .collection('special_day_details')
-          .doc(specialDayData['id'])
-          .update({'status': 'inactive', 'completed_at': Timestamp.now()});
-
-      if (mounted) {
-        CustomSnackbar.showSuccess(
-          context: context,
-          message: specialDayData['type'] == 'scrap'
-              ? 'Scrap pickup confirmed successfully! Cash received from pickup man.'
-              : 'Special day pickup confirmed successfully!',
-        );
-      }
-
-      // Re-enable scanning
-      await _enableScanning();
-      Navigator.pop(context);
-    } catch (e) {
-      print('Error confirming special day pickup: $e');
-      if (mounted) {
-        CustomSnackbar.showError(
-          context: context,
-          message: 'Failed to confirm pickup. Please try again.',
-        );
-      }
-    }
-  }
-
-  Future<void> _confirmScrapPickup(Map<String, dynamic> scrapDetailData) async {
-    try {
-      // Process scrap weights
-      Map<String, double> scrapWeights = {};
-      if (scrapDetailData['scrap_types'] != null) {
-        for (var type in scrapDetailData['scrap_types']) {
-          final controllerKey = 'scrap_detail_$type';
-          if (weightControllers[controllerKey]?.text.isNotEmpty ?? false) {
-            scrapWeights[type] = double.parse(
-                weightControllers[controllerKey]!.text);
-          } else if (scrapDetailData['scrap_weights'] != null &&
-              scrapDetailData['scrap_weights'][type] != null) {
-            // Use the weight from scrap details if controller is empty
-            scrapWeights[type] = scrapDetailData['scrap_weights'][type];
-          }
-        }
-      }
-
-      // Get total scrap weight and price from scrap details
-      double totalScrapWeight = scrapDetailData['total_scrap_weight'] ?? 0.0;
-      double totalScrapPrice = scrapDetailData['total_scrap_price'] ?? 0.0;
-
-      // Add to successful pickups collection
-      await FirebaseFirestore.instance.collection('successful_pickups').add({
-        'scrap_details_id': scrapDetailData['id'],
-        'customer_id': scrapDetailData['userId'],
-        'pickup_date': Timestamp.now(),
-        'scheduled_time': scrapDetailData['pickup_time'],
-        'type': 'scrap',
-        'waste_type': 'scrap',
-        'scrap_types': scrapDetailData['scrap_types'],
-        'scrap_weights': scrapWeights,
-        'total_scrap_weight': totalScrapWeight,
-        'total_scrap_price': totalScrapPrice,
-        'status': 'completed',
-        'completed_at': Timestamp.now()
-      });
-
-      // Create scrap pickup notification
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'user_id': scrapDetailData['userId'],
-        'message': 'Your scrap pickup has been completed successfully. Cash received from pickup man.',
-        'created_at': Timestamp.now(),
-        'read': false,
-        'type': 'scrap_pickup_completed'
-      });
-
-      // Update scrap details status to inactive
-      await FirebaseFirestore.instance
-          .collection('scrap_details')
-          .doc(scrapDetailData['id'])
-          .update({'status': 'inactive', 'completed_at': Timestamp.now()});
-
-      if (mounted) {
-        CustomSnackbar.showSuccess(
-          context: context,
-          message: 'Scrap pickup confirmed successfully! Cash received from pickup man.',
-        );
-      }
-
-      // Re-enable scanning
-      await _enableScanning();
-      Navigator.pop(context);
-    } catch (e) {
-      print('Error confirming scrap pickup: $e');
-      if (mounted) {
-        CustomSnackbar.showError(
-          context: context,
-          message: 'Failed to confirm pickup. Please try again.',
-        );
-      }
-    }
   }
 }
 
@@ -1800,6 +1333,8 @@ class _QRScannerPageState extends State<QRScannerPage> {
     // Add listener for scanning status changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkScanningStatus();
+      // Initialize ScreenUtil
+      ScreenUtil.instance.init(context);
     });
   }
 
@@ -1876,6 +1411,9 @@ class _QRScannerPageState extends State<QRScannerPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize ScreenUtil
+    ScreenUtil.instance.init(context);
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -1926,19 +1464,19 @@ class _QRScannerPageState extends State<QRScannerPage> {
                 Container(
                   decoration: BoxDecoration(
                     color: primaryGreen,
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(30),
-                      bottomRight: Radius.circular(30),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(30.r),
+                      bottomRight: Radius.circular(30.r),
                     ),
                   ),
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(20.w),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Scan Pickup Code',
                         style: GoogleFonts.poppins(
-                          fontSize: 20,
+                          fontSize: 20.sp,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -1947,6 +1485,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
                         icon: Icon(
                           isFlashOn ? Icons.flash_on : Icons.flash_off,
                           color: Colors.white,
+                          size: 24.sp,
                         ),
                         onPressed: () async {
                           await cameraController.toggleTorch();
@@ -1985,45 +1524,45 @@ class _QRScannerPageState extends State<QRScannerPage> {
             maxChildSize: 0.5,
             builder: (context, scrollController) {
               return Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
+                    topLeft: Radius.circular(30.r),
+                    topRight: Radius.circular(30.r),
                   ),
                 ),
                 child: SingleChildScrollView(
                   controller: scrollController,
                   child: Column(
                     children: [
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12.h),
                       Container(
-                        width: 40,
-                        height: 4,
+                        width: 40.w,
+                        height: 4.h,
                         decoration: BoxDecoration(
                           color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
+                          borderRadius: BorderRadius.circular(2.r),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(24.0),
+                        padding: EdgeInsets.all(24.w),
                         child: Column(
                           children: [
                             Text(
                               'Waste Pickup Verification',
                               style: GoogleFonts.poppins(
-                                fontSize: 24,
+                                fontSize: 24.sp,
                                 fontWeight: FontWeight.bold,
                                 color: primaryGreen,
                               ),
                             ),
                             if (scanHistory.isNotEmpty) ...[
-                              const SizedBox(height: 16),
+                              SizedBox(height: 16.h),
                               Container(
-                                padding: const EdgeInsets.all(16),
+                                padding: EdgeInsets.all(16.w),
                                 decoration: BoxDecoration(
                                   color: Colors.grey[50],
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12.r),
                                   border:
                                   Border.all(color: Colors.grey.shade200),
                                 ),
@@ -2034,20 +1573,20 @@ class _QRScannerPageState extends State<QRScannerPage> {
                                       children: [
                                         Icon(
                                           Icons.history,
-                                          size: 24,
+                                          size: 24.sp,
                                           color: primaryGreen,
                                         ),
-                                        const SizedBox(width: 8),
+                                        SizedBox(width: 8.w),
                                         Text(
                                           'Recent Scans',
                                           style: GoogleFonts.poppins(
-                                            fontSize: 16,
+                                            fontSize: 16.sp,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
+                                    SizedBox(height: 8.h),
                                     ...scanHistory.take(3).map((scan) {
                                       final parts = scan.split(' - ');
                                       final date = DateTime.parse(parts[0]);
@@ -2055,12 +1594,12 @@ class _QRScannerPageState extends State<QRScannerPage> {
                                       DateFormat('MMM d, HH:mm')
                                           .format(date);
                                       return Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 4),
+                                        padding: EdgeInsets.symmetric(
+                                            vertical: 4.h),
                                         child: Text(
                                           '$formattedDate - ${parts[1]}',
                                           style: GoogleFonts.poppins(
-                                            fontSize: 14,
+                                            fontSize: 14.sp,
                                             color: Colors.grey[600],
                                           ),
                                         ),
@@ -2070,48 +1609,48 @@ class _QRScannerPageState extends State<QRScannerPage> {
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16.h),
                             Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(16.w),
                               decoration: BoxDecoration(
                                 color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12.r),
                                 border: Border.all(color: Colors.grey.shade200),
                               ),
                               child: Column(
                                 children: [
                                   Icon(
                                     Icons.delete_outline,
-                                    size: 48,
+                                    size: 48.sp,
                                     color: primaryGreen,
                                   ),
-                                  const SizedBox(height: 16),
+                                  SizedBox(height: 16.h),
                                   Text(
                                     'Scan Customer\'s QR Code',
                                     style: GoogleFonts.poppins(
-                                      fontSize: 16,
+                                      fontSize: 16.sp,
                                       color: Colors.black87,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: 8.h),
                                   Text(
                                     'Position your phone to scan the QR code provided by the customer to confirm waste pickup.',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.poppins(
-                                      fontSize: 14,
+                                      fontSize: 14.sp,
                                       color: Colors.grey[600],
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16.h),
                             Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(16.w),
                               decoration: BoxDecoration(
                                 color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12.r),
                                 border: Border.all(color: Colors.grey.shade200),
                               ),
                               child: Column(
@@ -2120,15 +1659,15 @@ class _QRScannerPageState extends State<QRScannerPage> {
                                     children: [
                                       Icon(
                                         Icons.info_outline,
-                                        size: 24,
+                                        size: 24.sp,
                                         color: primaryGreen,
                                       ),
-                                      const SizedBox(width: 12),
+                                      SizedBox(width: 12.w),
                                       Expanded(
                                         child: Text(
                                           'How it works',
                                           style: GoogleFonts.poppins(
-                                            fontSize: 16,
+                                            fontSize: 16.sp,
                                             fontWeight: FontWeight.w600,
                                             color: Colors.black87,
                                           ),
@@ -2136,11 +1675,11 @@ class _QRScannerPageState extends State<QRScannerPage> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 12),
+                                  SizedBox(height: 12.h),
                                   Text(
                                     '1. Ask customer for their QR code\n2. Scan the code to verify pickup location\n3. Confirm the pickup on next screen\n4. Get customer signature if required',
                                     style: GoogleFonts.poppins(
-                                      fontSize: 14,
+                                      fontSize: 14.sp,
                                       color: Colors.grey[600],
                                     ),
                                   ),
@@ -2162,137 +1701,3 @@ class _QRScannerPageState extends State<QRScannerPage> {
   }
 }
 
-class QRCodePage extends StatefulWidget {
-  const QRCodePage({Key? key}) : super(key: key);
-
-  @override
-  State<QRCodePage> createState() => _QRCodePageState();
-}
-
-class _QRCodePageState extends State<QRCodePage> {
-  final Color primaryGreen = const Color(0xFF2E7D32);
-  String? qrData;
-
-  @override
-  void initState() {
-    super.initState();
-    _generateQRData();
-  }
-
-  Future<void> _generateQRData() async {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      return;
-    }
-
-    try {
-      // Get user's active subscription
-      final subscriptionSnapshot = await FirebaseFirestore.instance
-          .collection('subscription_details')
-          .where('userId', isEqualTo: currentUser.uid)
-          .where('status', isEqualTo: 'active')
-          .get();
-
-      // Get user's special day pickups
-      final specialDaySnapshot = await FirebaseFirestore.instance
-          .collection('special_day_details')
-          .where('userId', isEqualTo: currentUser.uid)
-          .where('status', isEqualTo: 'active')
-          .get();
-
-      // Create QR data
-      Map<String, dynamic> qrInfo = {
-        'userId': currentUser.uid,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'subscriptionId': subscriptionSnapshot.docs.isNotEmpty
-            ? subscriptionSnapshot.docs.first.id
-            : null,
-        'specialDayId': specialDaySnapshot.docs.isNotEmpty
-            ? specialDaySnapshot.docs.first.id
-            : null,
-      };
-
-      // Store QR data in Firestore
-      final qrDoc =
-      await FirebaseFirestore.instance.collection('qr_codes').add({
-        ...qrInfo,
-        'created_at': FieldValue.serverTimestamp(),
-        'created_by': currentUser.uid,
-        'updated_at': FieldValue.serverTimestamp(),
-        'updated_by': currentUser.uid,
-        'status': 'active'
-      });
-
-      setState(() {
-        qrData = qrDoc.id;
-      });
-    } catch (e) {
-      print('Error generating QR data: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'QR Code',
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: primaryGreen,
-        elevation: 0,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (qrData != null)
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 5,
-                      blurRadius: 7,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: QrImageView(
-                  data: qrData!,
-                  version: QrVersions.auto,
-                  size: 200.0,
-                  backgroundColor: Colors.white,
-                ),
-              )
-            else
-              const CircularProgressIndicator(),
-            const SizedBox(height: 20),
-            Text(
-              'Show this QR code to our pickup staff',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Valid for today only',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

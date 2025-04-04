@@ -54,19 +54,16 @@ class _RegisterState extends State<Register>
     emailController.dispose();
     passwordController.dispose();
     mobileController.dispose();
-    addressController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
-  // Fixed: removed space in method name
   Future<void> _storeUserDetails(String uid) async {
     try {
       await FirebaseFirestore.instance.collection('user_details').doc(uid).set({
         'fullName': nameController.text.trim(),
         'email': emailController.text.trim(),
         'mobile': mobileController.text.trim(),
-        'address': addressController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
         'userId': uid,
@@ -268,24 +265,6 @@ class _RegisterState extends State<Register>
                 icon: Icons.phone,
                 keyboardType: TextInputType.phone,
                 validator: _validateMobile,
-              ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: _showAddressScreen,
-                child: AbsorbPointer(
-                  child: _buildTextField(
-                    controller: addressController,
-                    label: 'Address',
-                    icon: Icons.location_on,
-                    maxLines: 3,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your address';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
               ),
               const SizedBox(height: 16),
               _buildTextField(

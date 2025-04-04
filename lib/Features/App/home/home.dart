@@ -247,11 +247,11 @@ class HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<HomeContent> {
   final List<String> _imageUrls = [
-    'https://example.com/image1.jpg',
-    'https://example.com/image2.jpg',
-    'https://example.com/image3.jpg',
-    'https://example.com/image4.jpg',
-    'https://example.com/image5.jpg',
+    'https://www.shutterstock.com/image-vector/vector-3r-reduce-reuse-recycle-260nw-2504451525.jpg',
+    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMQZ2XWfkvJi18c-5dDzIbXfamiDvnGkCvUA&s',
+    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSkMoncCEWoTjD2M05ulRS6csAMoeI8SMsJTg&s',
+    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRBTqXhlxDudvtSkP0ci23dvuwhKAhdVSnGFw&s',
+    'https://www.reactiondistributing.com/wp-content/uploads/2022/03/1-An-Overview-To-Waste-Management-System-.jpg',
   ];
 
   int _currentIndex = 0;
