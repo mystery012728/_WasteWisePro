@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutternew/Features/App/home/qrcode.dart';
 import 'package:flutternew/Features/App/market/ordered_products.dart';
+import 'package:flutternew/Features/App/profile/admin.dart';
 import 'package:flutternew/Features/App/profile/help.dart';
 import 'package:flutternew/Features/App/profile/notification_preference.dart';
 import 'package:flutternew/Features/App/profile/pickup_history.dart';
@@ -171,10 +172,10 @@ class _AddressScreenState extends State<AddressScreen> {
                 TextFormField(
                   controller: _roadController,
                   decoration:
-                      _buildInputDecoration('Road Name / Area / Colony'),
+                  _buildInputDecoration('Road Name / Area / Colony'),
                   style: GoogleFonts.poppins(),
                   validator: (value) =>
-                      value?.isEmpty ?? true ? 'Please enter road name' : null,
+                  value?.isEmpty ?? true ? 'Please enter road name' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -212,9 +213,9 @@ class _AddressScreenState extends State<AddressScreen> {
                             readOnly: true,
                             enabled: !_isLoading,
                             validator: (value) =>
-                                _city == null || _city!.isEmpty
-                                    ? 'Please enter valid pincode to get city'
-                                    : null,
+                            _city == null || _city!.isEmpty
+                                ? 'Please enter valid pincode to get city'
+                                : null,
                           ),
                           if (_isLoading)
                             Positioned(
@@ -329,8 +330,8 @@ class _ProfilePageState extends State<profile>
     );
     _slideAnimation =
         Tween<Offset>(begin: Offset(0, 0.1), end: Offset.zero).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-    );
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+        );
     _animationController.forward();
     _loadCachedData();
     _fetchUserData();
@@ -594,11 +595,11 @@ class _ProfilePageState extends State<profile>
   }
 
   Widget _buildImageSourceButton(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
+      BuildContext context, {
+        required IconData icon,
+        required String label,
+        required VoidCallback onTap,
+      }) {
     return Column(
       children: [
         Container(
@@ -631,7 +632,7 @@ class _ProfilePageState extends State<profile>
         context: context,
         builder: (context) => AlertDialog(
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
             'Confirm Photo',
             style: GoogleFonts.poppins(
@@ -740,7 +741,7 @@ class _ProfilePageState extends State<profile>
                 builder: (context) => Center(
                   child: CircularProgressIndicator(
                     valueColor:
-                        AlwaysStoppedAnimation<Color>(Colors.green.shade800),
+                    AlwaysStoppedAnimation<Color>(Colors.green.shade800),
                   ),
                 ),
               );
@@ -834,13 +835,13 @@ class _ProfilePageState extends State<profile>
 
   void _editProfileName(BuildContext context) {
     final TextEditingController nameController =
-        TextEditingController(text: _name);
+    TextEditingController(text: _name);
     final TextEditingController emailController =
-        TextEditingController(text: _email);
+    TextEditingController(text: _email);
     final TextEditingController mobileController =
-        TextEditingController(text: _mobile);
+    TextEditingController(text: _mobile);
     final TextEditingController addressController =
-        TextEditingController(text: _address);
+    TextEditingController(text: _address);
 
     showDialog(
       context: context,
@@ -871,7 +872,7 @@ class _ProfilePageState extends State<profile>
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide:
-                        BorderSide(color: Colors.green.shade600, width: 2),
+                    BorderSide(color: Colors.green.shade600, width: 2),
                   ),
                 ),
               ),
@@ -889,7 +890,7 @@ class _ProfilePageState extends State<profile>
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide:
-                        BorderSide(color: Colors.green.shade600, width: 2),
+                    BorderSide(color: Colors.green.shade600, width: 2),
                   ),
                 ),
               ),
@@ -907,7 +908,7 @@ class _ProfilePageState extends State<profile>
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide:
-                        BorderSide(color: Colors.green.shade600, width: 2),
+                    BorderSide(color: Colors.green.shade600, width: 2),
                   ),
                 ),
               ),
@@ -925,7 +926,7 @@ class _ProfilePageState extends State<profile>
                   decoration: InputDecoration(
                     labelText: 'Address (tap to edit)',
                     labelStyle:
-                        GoogleFonts.poppins(color: Colors.green.shade600),
+                    GoogleFonts.poppins(color: Colors.green.shade600),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(color: Colors.green.shade200),
@@ -933,7 +934,7 @@ class _ProfilePageState extends State<profile>
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide:
-                          BorderSide(color: Colors.green.shade600, width: 2),
+                      BorderSide(color: Colors.green.shade600, width: 2),
                     ),
                     disabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -1091,8 +1092,8 @@ class _ProfilePageState extends State<profile>
                 backgroundImage: _profileImage != null
                     ? FileImage(_profileImage!)
                     : _profilePhotoUrl.isNotEmpty
-                        ? NetworkImage(_profilePhotoUrl) as ImageProvider
-                        : const AssetImage('images/profile.jpg'),
+                    ? NetworkImage(_profilePhotoUrl) as ImageProvider
+                    : const AssetImage('images/profile.jpg'),
               ),
             ),
             Positioned(
@@ -1242,6 +1243,19 @@ class _ProfilePageState extends State<profile>
                   context,
                   MaterialPageRoute(
                     builder: (context) => const RewardsPage(),
+                  ),
+                );
+              },
+            ),
+            _buildDivider(),
+            _buildProfileOption(
+              icon: Icons.admin_panel_settings,
+              title: 'Admin Dashboard',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AdminPage(),
                   ),
                 );
               },

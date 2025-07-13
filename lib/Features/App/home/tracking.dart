@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutternew/Features/App/notification/background_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -9,122 +8,11 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:timeline_tile/timeline_tile.dart';
 import 'package:http/http.dart' as http;
-import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
-
-// Background task name
-const String TRACKING_TASK = "tracking_task";
-
-// Callback function for background task
-@pragma('vm:entry-point')
-void callbackDispatcher() {
-  Workmanager().executeTask((task, inputData) async {
-    switch (task) {
-      case TRACKING_TASK:
-        await _performBackgroundTracking(
-          inputData!['pickupId'] as String,
-          inputData['collectionName'] as String,
-        );
-        break;
-    }
-    return Future.value(true);
-  });
-}
-
-Future<void> _performBackgroundTracking(
-    String pickupId, String collectionName) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final pickupDoc = await FirebaseFirestore.instance
-        .collection(collectionName)
-        .doc(pickupId)
-        .get();
-
-    if (!pickupDoc.exists) return;
-
-    final data = pickupDoc.data()!;
-    final pickupTime = data['pickup_time'] as String;
-    final pickupDate = collectionName == 'special_day_details'
-        ? (data['pickup_date'] as Timestamp).toDate()
-        : DateTime.now();
-
-    if (data['status'] == 'cancelled') return;
-
-    final position = await Geolocator.getCurrentPosition();
-    final isComplete = await _checkPickupCompletion(position, data);
-
-    if (isComplete) {
-      await pickupDoc.reference.update({'status': 'completed'});
-      await _showBackgroundNotification();
-      await _scheduleNextPickupInBackground(pickupTime);
-      // Stop background tracking for this pickup
-      await Workmanager().cancelByUniqueName('${TRACKING_TASK}_$pickupId');
-    }
-  } catch (e) {
-    print('Background tracking error: $e');
-  }
-}
-
-Future<bool> _checkPickupCompletion(
-    Position position, Map<String, dynamic> data) async {
-  // Implement your pickup completion logic here
-  // For example, check if the truck is within a certain radius of the pickup location
-  final pickupLat = data['pickup_location']['latitude'] as double;
-  final pickupLng = data['pickup_location']['longitude'] as double;
-
-  final distance = Geolocator.distanceBetween(
-    position.latitude,
-    position.longitude,
-    pickupLat,
-    pickupLng,
-  );
-
-  // Consider pickup complete if within 50 meters
-  return distance <= 50;
-}
-
-Future<void> _showBackgroundNotification() async {
-  await AwesomeNotifications().createNotification(
-    content: NotificationContent(
-      id: DateTime.now().millisecond,
-      channelKey: 'pickup_tracking',
-      title: 'Pickup Complete!',
-      body: 'Your waste has been successfully collected.',
-      notificationLayout: NotificationLayout.Default,
-      displayOnBackground: true,
-      displayOnForeground: true,
-    ),
-  );
-}
-
-Future<void> _scheduleNextPickupInBackground(String pickupTime) async {
-  final nextPickupDate = DateTime.now().add(Duration(days: 1));
-  final timeFormat = DateFormat('h:mm a');
-  final nextPickupDateTime = DateTime(
-    nextPickupDate.year,
-    nextPickupDate.month,
-    nextPickupDate.day,
-    timeFormat.parse(pickupTime).hour,
-    timeFormat.parse(pickupTime).minute,
-  );
-
-  await AwesomeNotifications().createNotification(
-    content: NotificationContent(
-      id: DateTime.now().millisecond,
-      channelKey: 'pickup_tracking',
-      title: 'Next Pickup Scheduled',
-      body:
-          'Your next pickup is scheduled for ${DateFormat('MMM dd, yyyy h:mm a').format(nextPickupDateTime)}',
-      notificationLayout: NotificationLayout.Default,
-    ),
-    schedule: NotificationCalendar.fromDate(
-        date: nextPickupDateTime.subtract(Duration(hours: 1))),
-  );
-}
 
 class WasteCenter {
   final String name;
@@ -197,8 +85,6 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
     _initializeNotifications();
     _setupLocationPermissions();
     _setupPickupTracking();
-    // Start background tracking service
-    BackgroundService.startTrackingTask(widget.pickupId, widget.collectionName);
   }
 
   Future<void> _setupLocationPermissions() async {
@@ -779,10 +665,6 @@ class _TrackPickUpPageState extends State<TrackPickUpPage> {
     _timer?.cancel();
     _animationTimer?.cancel();
     _mapController.dispose();
-    // Only stop tracking if pickup is complete or cancelled
-    if (_isPickupComplete || _isPickupCancelled) {
-      BackgroundService.stopTrackingTask(widget.pickupId);
-    }
     super.dispose();
   }
 }

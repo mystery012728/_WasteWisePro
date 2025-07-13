@@ -42,6 +42,9 @@ class _WasteWiseProCentersMapState extends State<map>
   double _userHeading = 0.0;
   List<Marker> _markers = [];
   bool _isSearching = false;
+  bool _isMapLoading = true;
+  bool _mapError = false;
+  int _tileProviderIndex = 0;
 
   Future<void> _getDirections(LatLng destination) async {
     final String apiKey =
@@ -119,6 +122,16 @@ class _WasteWiseProCentersMapState extends State<map>
       setState(() {
         _isSearching = _searchController.text.isNotEmpty;
       });
+    });
+
+    // Set map loading to false after a delay to ensure tiles load
+    Future.delayed(Duration(seconds: 5), () {
+      if (mounted && _isMapLoading) {
+        setState(() {
+          _isMapLoading = false;
+          _mapError = true;
+        });
+      }
     });
   }
 
@@ -316,6 +329,16 @@ class _WasteWiseProCentersMapState extends State<map>
       double distanceInKm = distanceInMeters / 1000;
       return '${distanceInKm.toStringAsFixed(2)} km';
     }
+  }
+
+  String _getTileUrl() {
+    final List<String> tileProviders = [
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    ];
+    return tileProviders[_tileProviderIndex % tileProviders.length];
   }
 
   void _filterCenters(String query) async {
@@ -738,6 +761,83 @@ class _WasteWiseProCentersMapState extends State<map>
     return Scaffold(
       body: Stack(
         children: [
+          if (_isMapLoading)
+            Container(
+              color: Colors.grey[100],
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(primaryGreen),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading map...',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (_mapError)
+            Container(
+              color: Colors.grey[100],
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Failed to load map',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Please check your internet connection',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _mapError = false;
+                          _isMapLoading = true;
+                          _tileProviderIndex++;
+                        });
+                        Future.delayed(Duration(seconds: 2), () {
+                          if (mounted) {
+                            setState(() {
+                              _isMapLoading = false;
+                            });
+                          }
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -748,12 +848,20 @@ class _WasteWiseProCentersMapState extends State<map>
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
+              onMapReady: () {
+                print('Map is ready');
+                setState(() {
+                  _isMapLoading = false;
+                  _mapError = false;
+                });
+              },
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                subdomains: const ['a', 'b', 'c'],
+                urlTemplate: _getTileUrl(),
+                userAgentPackageName: 'com.example.flutternew',
+                maxZoom: 18,
+                tileProvider: NetworkTileProvider(),
               ),
               if (_routePoints.isNotEmpty)
                 PolylineLayer(
@@ -767,6 +875,25 @@ class _WasteWiseProCentersMapState extends State<map>
                 ),
               MarkerLayer(markers: _markers),
             ],
+          ),
+          // Attribution
+          Positioned(
+            bottom: 0,
+            left: 0,
+            child: Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.8),
+                borderRadius: BorderRadius.only(topRight: Radius.circular(8)),
+              ),
+              child: Text(
+                '© OpenStreetMap contributors',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
           ),
           // Search bar
           Positioned(

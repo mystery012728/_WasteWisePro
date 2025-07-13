@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutternew/Features/App/User_auth/util/screen_util.dart';
-import 'package:flutternew/Features/App/notification/background_service.dart';
 import 'package:flutternew/Features/App/splash_screen/welcome.dart';
 import 'package:provider/provider.dart';
 import 'Features/App/home/home.dart';
@@ -29,9 +28,6 @@ void main() async {
       projectId: "wastewisepro",
     ),
   );
-
-  // Initialize background service
-  await BackgroundService.initialize();
 
   // Configure notification channels
   AwesomeNotifications().initialize(
